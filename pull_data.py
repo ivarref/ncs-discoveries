@@ -6,6 +6,10 @@ import sys
 import codecs
 from pprint import pprint
 
+# Goal:
+# Output
+# field    discovery_year    produced_oil produced_gas ... etc .. recoverable_oil  recoverable_gas ..etc.. status (producing, shutdown, etc.)
+
 # Goal: Show an overview of discoveries on the NCS. 
 # Include all types of discoveries: 
 # Producing (e.g. EKOFISK), 
@@ -14,7 +18,6 @@ from pprint import pprint
 # Planning Phase (Johan Castberg)
 #
 # Grouped by e.g. discovery decade?
-
 
 
 discoveries_url_csv = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/discovery&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=2.150.32.28&CultureCode=en'
@@ -77,13 +80,13 @@ data = [x.split(",") for x in data]
 
 # Goal: Get reserves of fields to come on stream / could come on stream
 
-#DEVELOPMENT LIKELY BUT NOT CLARIFIED
 #PDO APPROVED
-#PLANNING PHASE
 
 ignore_statuses = """"NEW DISCOVERIES
 DEVELOPMENT IS NOT VERY LIKELY
 INCLUDED IN OTHER DISCOVERY
+PLANNING PHASE
+DEVELOPMENT LIKELY BUT NOT CLARIFIED
 PRODUCING
 SHUT DOWN""".split("\n")
 
@@ -140,7 +143,9 @@ for f in fields:
 
 #print "And found: %d" % (found_count)
 print "And remaining in Gb: %.02f" % ((Decimal(6.29) * rem) / Decimal(1000.0))
+print "And remaining in Mill Sm3: %.02f" % (rem)
 
 for f in ok_fields:
-  print "%s => %s" % (res_map[f[dscName]], f[dscName])
+  #print "%s => %s" % (res_map[f[dscName]], f[dscName])
+  pass
 
