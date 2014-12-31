@@ -119,26 +119,34 @@ for field in fields:
   elif npdid in npdid_to_rs:
     (oil, gas) = npdid_to_rs[npdid]
   else:
-    print "[WARN] did not find field '%s'" % (name)
+    print "[WARN] did not reserve data for field '%s'" % (name)
   if oil is not None:
     year = field[dscDiscoveryYear]
-    result.append( (int(year), name, npdid, oil, gas) )
-    #print "[OK] Field '%s' with npdid '%s' and discovery year %s" % (name, npdid, 
-    #)
+    status = field[dscCurrentActivityStatus]
+    result.append( (int(year), name, status, oil, gas) )
   
 result.sort(key=lambda tup: tup[0])
 
-oil_total = Decimal(0)
-gas_total = Decimal(0)
-for (year, name, npdid, oil, gas) in result:
-  oil_total += oil
-  gas_total += gas
+def reserves_sum(res):
+  oil_total = Decimal(0)
+  gas_total = Decimal(0)
+  for (year, name, status, oil, gas) in res:
+    oil_total += oil
+    gas_total += gas
+  return (oil_total, gas_total)
 
-print oil_total
-print gas_total
+laterthan2000 = []
+for (year, name, status, oil, gas) in result:
+  if status in ['PRODUCING', 'SHUT DOWN'] or year < 2000:
+    continue
+  laterthan2000.append((year, name, status,oil,gas))
+
+#print reserves_sum(laterthan2000)
+#print reserves_sum(result)
+
 with codecs.open('data/data.tsv', encoding='utf-8', mode='w') as fd:
   fd.write('field discovery_year recoverable_oil recoverable_gas\n'.replace(' ', '\t'))
-  for (year, name, npdid, oil, gas) in result:
+  for (year, name, status, oil, gas) in result:
     fd.write("\t".join([name, str(year), str(oil), str(gas)]))
     fd.write("\n")
 

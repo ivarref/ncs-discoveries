@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+body { font: 12px sans-serif; }
+svg { border: 1px solid #000; }
+path { fill: none; stroke: black; stroke-width: 3px; }
+text.heading { font: 22px sans-serif; font-variant: small-caps; font-weight: bold; }
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1px;
+  shape-rendering: crispEdges;
+}
+</style>
+<title>What is the discovery rate on the Norwegian Continental Shelf?</title>
+<body>
+<script src="d3.v3.min.js"></script>
+<script>
+function singleElement(root, elementtype, id) {
+  var sel = root.selectAll(elementtype + "#" + id).data([1])
+  sel.enter().append(elementtype).attr('id', id)
+  return sel
+}
+
+var margin = {top: 35, right: 60, bottom: 35, left: 40},
+    width = 960 - margin.left - margin.right,
+    height = 470 - margin.top - margin.bottom
+
+var svg = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+
+d3.tsv('data/data.tsv', function(err, data) { 
+  data.forEach(function(d) {
+    d.discovery_year = +d.discovery_year
+    d.recoverable_oil = +d.recoverable_oil * 6.29 / 1000.0
+    d.recoverable_gas = +d.recoverable_gas * 6.29 / 1000.0
+  })
+
+  var nested_data = d3.nest()
+  .key(function(d) { return d.discovery_year })
+  .sortKeys(d3.ascending)
+  .entries(data)
+
+  nested_data.forEach(function(d, i) {
+    var sum_oil = function(d) { return d.recoverable_oil }
+    var sum_gas = function(d) { return d.recoverable_gas }
+
+    d.recoverable_oil = d3.sum(d.values, sum_oil)
+    d.recoverable_gas = d3.sum(d.values, sum_gas)
+
+    d.cumulative_oil = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), sum_oil)
+    d.cumulative_gas = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), sum_gas)
+  })
+
+  var y = d3.scale.linear().range([height, 0])
+  var x = d3.scale.linear().range([0, width])
+  var color = d3.scale.category10()
+
+  var idx = nested_data.length-1
+  var key = 'cumulative_oil'
+
+  x.domain([nested_data[0].key, nested_data[idx].key])
+  y.domain([0, nested_data[idx][key]])
+
+  var y2 = d3.scale.linear().range([height, 0])
+  y2.domain([0, 100])
+
+  svg.selectAll('line').data(d3.range(10, 110, 10))
+  .enter()
+  .append('line')
+  .attr('class', 'axis')
+  .attr('x1', 0)
+  .attr('x2', width)
+  .attr('y1', y2)
+  .attr('y2', y2)
+  .style('stroke', 'gray')
+  .style('stroke-opacity', '60%')
+
+  singleElement(svg, 'g', 'xAxis')
+  .attr('class', 'x axis')
+  .attr("transform", "translate(0," + height + ")")
+  .call(d3.svg.axis().scale(x).orient("bottom").tickFormat(function(d) { return d }))
+
+  singleElement(svg, 'g', 'yAxis2')
+  .attr('class', 'y axis')
+  .attr("transform", "translate(0,0)")
+  .call(d3.svg.axis().scale(y2).orient("left"))
+
+  singleElement(svg, 'g', 'yAxis')
+  .attr('class', 'y axis')
+  .attr("transform", "translate(" + width + ",0)")
+  .call(d3.svg.axis().scale(y).orient("right"))
+
+  svg.selectAll('circle').data(nested_data)
+  .enter()
+  .append('circle')
+  .attr('cx', function(d) { return x(d.key) })
+  .attr('cy', function(d) { return y(d[key]) })
+  .attr('r', '5')
+  
+})
+
+</script>
+</body>
