@@ -23,7 +23,7 @@ function singleElement(root, elementtype, id) {
   return sel
 }
 
-var margin = {top: 35, right: 60, bottom: 35, left: 40},
+var margin = {top: 35, right: 60, bottom: 35, left: 60},
     width = 960 - margin.left - margin.right,
     height = 470 - margin.top - margin.bottom
 
@@ -101,6 +101,29 @@ d3.tsv('data/data.tsv', function(err, data) {
   .attr('cx', function(d) { return x(d.key) })
   .attr('cy', function(d) { return y(d[key]) })
   .attr('r', '5')
+
+  singleElement(svg, 'text', 'yaxislabel')
+  .attr("transform", "translate(" + (width+35) + "," + (height/2) + ") rotate(90)")
+  .attr("dy", "-.29em")
+  .attr('text-anchor', 'middle')
+  .style('font-variant', 'small-caps')
+  .text('Cumulative Discoveries of Oil in Giga (Billion) Barrels, Gb')
+
+  singleElement(svg, 'text', 'yaxislabel2')
+  .attr("transform", "translate(" + (-35) + "," + (height/2) + ") rotate(-90)")
+  .attr("dy", ".29em")
+  .attr('text-anchor', 'middle')
+  .style('font-variant', 'small-caps')
+  .text('Percentage of Cumulative Discoveries')
+
+  // goal: use bars / rectangles...
+
+  singleElement(svg, 'text', 'xaxislabel')
+  .attr("transform", "translate(" + (width/2) + "," + (height + margin.bottom) + ")")
+  .attr("dy", "-.29em")
+  .style("text-anchor", "middle")
+  .style("font-variant", "small-caps")
+  .text('Year of Discovery')
   
 })
 
