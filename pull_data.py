@@ -4,6 +4,7 @@ from decimal import Decimal
 import datetime
 import sys
 import codecs
+import os
 from pprint import pprint
 
 # Goal:
@@ -91,6 +92,26 @@ def get_resources_map():
     resource_map[res[dscName]] = (Decimal(res[dscRecoverableOil]), Decimal(res[dscRecoverableGas]))
   return resource_map
 
+def verify_and_assign(values, data):
+  if data[0] != values:
+    print "Failure. Expected %s, but got %s" % (values, data)
+    sys.exit(-1)
+  return tuple([idx for (idx, x) in enumerate(values.split(","))])
+
+def npdid_to_production():
+  url = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/field_production_monthly&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=84.208.153.159&CultureCode=en' # cache/6d5d9ed4edfd9221f821f6bb334013dc
+  production = [x.strip() for x in get_url(url).split("\n") if x.strip() != ""]
+  (prfInformationCarrier,prfYear,prfMonth,prfPrdOilNetMillSm3,prfPrdGasNetBillSm3,prfPrdNGLNetMillSm3,prfPrdCondensateNetMillSm3,prfPrdOeNetMillSm3,prfPrdProducedWaterInFieldMillSm3,prfNpdidInformationCarrier) = verify_and_assign("prfInformationCarrier,prfYear,prfMonth,prfPrdOilNetMillSm3,prfPrdGasNetBillSm3,prfPrdNGLNetMillSm3,prfPrdCondensateNetMillSm3,prfPrdOeNetMillSm3,prfPrdProducedWaterInFieldMillSm3,prfNpdidInformationCarrier", production)
+  production = production[1:]
+  res = {}
+  for line in production:
+    line = line.split(",")
+    npdid = line[prfNpdidInformationCarrier]
+    if npdid not in res:
+      res[npdid] = Decimal(0)
+    res[npdid] += Decimal(line[prfPrdOilNetMillSm3])
+  return res
+
 def npdid_to_reserves():
   reserves_url_csv = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/field_reserves&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=84.208.160.74&CultureCode=en'
   reserves = [x.strip() for x in get_url(reserves_url_csv).split("\n") if x.strip() != ""]
@@ -107,6 +128,8 @@ def npdid_to_reserves():
 
 rs_map = get_resources_map()
 npdid_to_rs = npdid_to_reserves()
+
+npdid_to_production()
 
 result = []
 
@@ -144,6 +167,8 @@ for (year, name, status, oil, gas) in result:
 #print reserves_sum(laterthan2000)
 #print reserves_sum(result)
 
+if not os.path.exists('data'):
+  os.makedirs('data')
 with codecs.open('data/data.tsv', encoding='utf-8', mode='w') as fd:
   fd.write('field discovery_year recoverable_oil recoverable_gas\n'.replace(' ', '\t'))
   for (year, name, status, oil, gas) in result:

@@ -13,7 +13,7 @@ text.heading { font: 22px sans-serif; font-variant: small-caps; font-weight: bol
   shape-rendering: crispEdges;
 }
 </style>
-<title>What is the discovery rate on the Norwegian Continental Shelf?</title>
+<title>When was the Petroleum on the Norwegian Continental Shelf discovered?</title>
 <body>
 <script src="d3.v3.min.js"></script>
 <script>
@@ -57,13 +57,14 @@ d3.tsv('data/data.tsv', function(err, data) {
   })
 
   var y = d3.scale.linear().range([height, 0])
-  var x = d3.scale.linear().range([0, width])
+  var x = d3.scale.ordinal().rangeBands([0, width], .1)
   var color = d3.scale.category10()
 
   var idx = nested_data.length-1
   var key = 'cumulative_oil'
 
-  x.domain([nested_data[0].key, nested_data[idx].key])
+  //x.domain([nested_data[0].key, nested_data[idx].key])
+  x.domain(nested_data.map(function(d) { return d.key })) // nested_data[0].key, nested_data[idx].key])
   y.domain([0, nested_data[idx][key]])
 
   var y2 = d3.scale.linear().range([height, 0])
@@ -80,10 +81,21 @@ d3.tsv('data/data.tsv', function(err, data) {
   .style('stroke', 'gray')
   .style('stroke-opacity', '60%')
 
+  var xAxis = d3.svg.axis().scale(x).orient("bottom")
+  .tickFormat(function(d) { return d })
+  .tickValues(x.domain().filter(function(d, i) {
+    return i == 0 || i == x.domain().length-1
+          || parseInt(d) % 5 == 0
+  }))
+
+
   singleElement(svg, 'g', 'xAxis')
   .attr('class', 'x axis')
   .attr("transform", "translate(0," + height + ")")
-  .call(d3.svg.axis().scale(x).orient("bottom").tickFormat(function(d) { return d }))
+  .call(xAxis)
+  .selectAll('text')
+  .filter(function(d) { return parseInt(d) % 5 != 0 })
+  .style('font-style', 'italic')
 
   singleElement(svg, 'g', 'yAxis2')
   .attr('class', 'y axis')
@@ -95,12 +107,34 @@ d3.tsv('data/data.tsv', function(err, data) {
   .attr("transform", "translate(" + width + ",0)")
   .call(d3.svg.axis().scale(y).orient("right"))
 
-  svg.selectAll('circle').data(nested_data)
+  /* 
+  Goals: 
+  ======
+  Show remaining values (lighter bars)
+  Show gas, petroleum
+  Add caption
+
+  Done
+  ====
+  Use bars.
+  */
+
+  //var w = width / nested_data.length
+  singleElement(svg, 'g', 'bars1')
+  .selectAll('rect').data(nested_data)
   .enter()
-  .append('circle')
-  .attr('cx', function(d) { return x(d.key) })
-  .attr('cy', function(d) { return y(d[key]) })
-  .attr('r', '5')
+  .append('rect')
+  .attr('height', function(d) { return height - y(d[key]) } )
+  .attr('width', x.rangeBand())
+  .attr('x', function(d, i) { return x(d.key) })
+  .attr('y', function(d) { return y(d[key]) })
+  .style('fill', "#187418")
+
+  singleElement(svg, 'text', 'heading')
+  .attr("transform", "translate(" + (0) + "," + (0) + ")")
+  .attr("dy", "-.29em")
+  .attr("class", "heading")
+  .text('When was the Oil on Norwegian Continental Shelf discovered?')
 
   singleElement(svg, 'text', 'yaxislabel')
   .attr("transform", "translate(" + (width+35) + "," + (height/2) + ") rotate(90)")
@@ -116,7 +150,6 @@ d3.tsv('data/data.tsv', function(err, data) {
   .style('font-variant', 'small-caps')
   .text('Percentage of Cumulative Discoveries')
 
-  // goal: use bars / rectangles...
 
   singleElement(svg, 'text', 'xaxislabel')
   .attr("transform", "translate(" + (width/2) + "," + (height + margin.bottom) + ")")
@@ -124,7 +157,14 @@ d3.tsv('data/data.tsv', function(err, data) {
   .style("text-anchor", "middle")
   .style("font-variant", "small-caps")
   .text('Year of Discovery')
-  
+
+  singleElement(svg, 'text', 'contact')
+  .attr("transform", "translate(" + (width + margin.right) + "," + (height + margin.bottom) + ")")
+  .attr("dy", "-.29em")
+  .attr("dx", "-.29em")
+  .style("text-anchor", "end")
+  .style('font-variant', 'small-caps')
+  .text('Diagram by Refsdal.Ivar@gmail.com')
 })
 
 </script>
