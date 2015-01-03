@@ -7,6 +7,9 @@ import codecs
 import os
 from pprint import pprint
 
+# Notes about the generated data:
+# Original units is kept, i.e. Mill Sm3 is used for oil, and Bill Sm3 is used for gas.
+
 # Goal:
 # Output
 # field    discovery_year    produced_oil produced_gas ... etc .. recoverable_oil  recoverable_gas ..etc.. status (producing, shutdown, etc.)
@@ -30,31 +33,26 @@ def set_output_encoding(encoding='utf-8'):
   if current is None :
     sys.stderr = codecs.getwriter(encoding)(sys.stderr)
 
-def get_url(url):
+def get_url(url, filename):
   import urllib2
-  import hashlib
   import os
 
-  m = hashlib.md5()
-  m.update(url)
-  md5 = m.hexdigest()
-  cache = 'cache/' + md5
   if not os.path.exists('cache'):
     os.makedirs('cache')
 
-  if not os.path.isfile(cache):
-    with codecs.open(cache, encoding='utf-8', mode='w') as fd:
-      print "Creating cache %s for %s ..." % (cache, url)
+  if not os.path.isfile(filename):
+    with codecs.open(filename, encoding='utf-8', mode='w') as fd:
+      print "Creating cache %s for %s ..." % (filename, url)
       response = urllib2.urlopen(url)
       fd.write(response.read().decode('utf-8-sig'))
-      print "Created cache %s for %s" % (cache, url)
+      print "Created cache %s for %s" % (filename, url)
   
-  with open(cache, 'r') as fd:
+  with open(filename, 'r') as fd:
     return fd.read().decode('utf-8')
 
 set_output_encoding()
 
-data = [x.strip() for x in get_url(discoveries_url_csv).split('\n')]
+data = [x.strip() for x in get_url(discoveries_url_csv, 'cache/discoveries.csv').split('\n')]
 values = "dscName,cmpLongName,dscCurrentActivityStatus,dscHcType,wlbName,nmaName,fldName,dscDateFromInclInField,dscDiscoveryYear,dscResInclInDiscoveryName,dscOwnerKind,dscOwnerName,dscNpdidDiscovery,fldNpdidField,wlbNpdidWellbore,dscFactPageUrl,dscFactMapUrl,dscDateUpdated,dscDateUpdatedMax,DatesyncNPD"
 
 if values != data[0]:
@@ -80,7 +78,7 @@ INCLUDED IN OTHER DISCOVERY
 fields = [line for line in data if line[dscCurrentActivityStatus] not in ignore_statuses]
 
 def get_resources_map():
-  resources = [x.strip() for x in get_url(resources_url_csv).split("\n")]
+  resources = [x.strip() for x in get_url(resources_url_csv, 'cache/resources.csv').split("\n")]
   values = "dscName,dscReservesRC,dscRecoverableOil,dscRecoverableGas,dscRecoverableNGL,dscRecoverableCondensate,dscDateOffResEstDisplay,dscNpdidDiscovery,dscReservesDateUpdated,DatesyncNPD"
   if resources[0] != values:
     print "CSV format changed."
@@ -94,27 +92,14 @@ def get_resources_map():
 
 def verify_and_assign(values, data):
   if data[0] != values:
-    print "Failure. Expected %s, but got %s" % (values, data)
+    print "Failure. Expected %s, but got %s.\nCSV format must have changed!" % (values, data)
     sys.exit(-1)
   return tuple([idx for (idx, x) in enumerate(values.split(","))])
 
-def npdid_to_production():
-  url = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/field_production_monthly&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=84.208.153.159&CultureCode=en' # cache/6d5d9ed4edfd9221f821f6bb334013dc
-  production = [x.strip() for x in get_url(url).split("\n") if x.strip() != ""]
-  (prfInformationCarrier,prfYear,prfMonth,prfPrdOilNetMillSm3,prfPrdGasNetBillSm3,prfPrdNGLNetMillSm3,prfPrdCondensateNetMillSm3,prfPrdOeNetMillSm3,prfPrdProducedWaterInFieldMillSm3,prfNpdidInformationCarrier) = verify_and_assign("prfInformationCarrier,prfYear,prfMonth,prfPrdOilNetMillSm3,prfPrdGasNetBillSm3,prfPrdNGLNetMillSm3,prfPrdCondensateNetMillSm3,prfPrdOeNetMillSm3,prfPrdProducedWaterInFieldMillSm3,prfNpdidInformationCarrier", production)
-  production = production[1:]
-  res = {}
-  for line in production:
-    line = line.split(",")
-    npdid = line[prfNpdidInformationCarrier]
-    if npdid not in res:
-      res[npdid] = Decimal(0)
-    res[npdid] += Decimal(line[prfPrdOilNetMillSm3])
-  return res
 
 def npdid_to_reserves():
   reserves_url_csv = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/field_reserves&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=84.208.160.74&CultureCode=en'
-  reserves = [x.strip() for x in get_url(reserves_url_csv).split("\n") if x.strip() != ""]
+  reserves = [x.strip() for x in get_url(reserves_url_csv, 'cache/reserves.csv').split("\n") if x.strip() != ""]
   values = "fldName,fldRecoverableOil,fldRecoverableGas,fldRecoverableNGL,fldRecoverableCondensate,fldRecoverableOE,fldRemainingOil,fldRemainingGas,fldRemainingNGL,fldRemainingCondensate,fldRemainingOE,fldDateOffResEstDisplay,fldNpdidField,DatesyncNPD"
   if reserves[0] != values:
     print "CSV format changed."
@@ -129,7 +114,6 @@ def npdid_to_reserves():
 rs_map = get_resources_map()
 npdid_to_rs = npdid_to_reserves()
 
-npdid_to_production()
 
 result = []
 
@@ -142,37 +126,44 @@ for field in fields:
   elif npdid in npdid_to_rs:
     (oil, gas) = npdid_to_rs[npdid]
   else:
-    print "[WARN] did not reserve data for field '%s'" % (name)
+    print "[WARN] Did not find reserve data for field '%s'" % (name)
   if oil is not None:
     year = field[dscDiscoveryYear]
     status = field[dscCurrentActivityStatus]
-    result.append( (int(year), name, status, oil, gas) )
+    result.append( (int(year), npdid, name, status, oil, gas) )
   
 result.sort(key=lambda tup: tup[0])
 
-def reserves_sum(res):
-  oil_total = Decimal(0)
-  gas_total = Decimal(0)
-  for (year, name, status, oil, gas) in res:
-    oil_total += oil
-    gas_total += gas
-  return (oil_total, gas_total)
+def npdid_to_production():
+  url = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/field_production_monthly&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=84.208.153.159&CultureCode=en'
+  production = [x.strip() for x in get_url(url, 'cache/production.csv').split("\n") if x.strip() != ""]
+  (prfInformationCarrier,prfYear,prfMonth,prfPrdOilNetMillSm3,prfPrdGasNetBillSm3,prfPrdNGLNetMillSm3,prfPrdCondensateNetMillSm3,prfPrdOeNetMillSm3,prfPrdProducedWaterInFieldMillSm3,prfNpdidInformationCarrier) = verify_and_assign("prfInformationCarrier,prfYear,prfMonth,prfPrdOilNetMillSm3,prfPrdGasNetBillSm3,prfPrdNGLNetMillSm3,prfPrdCondensateNetMillSm3,prfPrdOeNetMillSm3,prfPrdProducedWaterInFieldMillSm3,prfNpdidInformationCarrier", production)
+  production = production[1:]
+  res = {}
+  for line in production:
+    line = line.split(",")
+    npdid = line[prfNpdidInformationCarrier]
+    if npdid not in res:
+      res[npdid] = { 'oil' : Decimal(0), 'gas' : Decimal(0) }
+    res[npdid]['oil'] += Decimal(line[prfPrdOilNetMillSm3])
+    res[npdid]['gas'] += Decimal(line[prfPrdGasNetBillSm3])
+  def lookup(npdid):
+    if npdid in res:
+      return res[npdid]
+    else:
+      return { 'oil' : Decimal(0), 'gas' : Decimal(0) }
+  return lookup
 
-laterthan2000 = []
-for (year, name, status, oil, gas) in result:
-  if status in ['PRODUCING', 'SHUT DOWN'] or year < 2000:
-    continue
-  laterthan2000.append((year, name, status,oil,gas))
-
-#print reserves_sum(laterthan2000)
-#print reserves_sum(result)
+npdid_to_prod = npdid_to_production()
 
 if not os.path.exists('data'):
   os.makedirs('data')
 with codecs.open('data/data.tsv', encoding='utf-8', mode='w') as fd:
-  fd.write('field discovery_year recoverable_oil recoverable_gas\n'.replace(' ', '\t'))
-  for (year, name, status, oil, gas) in result:
-    fd.write("\t".join([name, str(year), str(oil), str(gas)]))
+  fd.write('field discovery_year recoverable_oil recoverable_gas produced_oil produced_gas\n'.replace(' ', '\t'))
+  for (year, npdid, name, status, oil, gas) in result:
+    produced = npdid_to_prod(npdid)
+    produced_oil = "%.2f" % (produced['oil'])
+    produced_gas = "%.2f" % (produced['gas'])
+    fd.write("\t".join([name, str(year), str(oil), str(gas), produced_oil, produced_gas] ))
     fd.write("\n")
-
 
