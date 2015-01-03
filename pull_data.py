@@ -167,3 +167,8 @@ with codecs.open('data/data.tsv', encoding='utf-8', mode='w') as fd:
     fd.write("\t".join([name, str(year), str(oil), str(gas), produced_oil, produced_gas] ))
     fd.write("\n")
 
+with codecs.open('data/produced.csv', encoding='utf-8', mode='w') as fd:
+  data = [x.strip() for x in get_url('http://factpages.npd.no/ReportServer?/FactPages/TableView/field_production_totalt_NCS_year__DisplayAllRows&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=84.208.153.159&CultureCode=en', 'cache/yearly_produced_total.csv').split('\n') if x.strip() != '']
+  (prfYear,prfPrdOilNetMillSm,prfPrdGasNetBillSm,prfPrdCondensateNetMillSm3,prfPrdNGLNetMillSm3,prfPrdOeNetMillSm3,prfPrdProducedWaterInFieldMillSm3) = verify_and_assign("prfYear,prfPrdOilNetMillSm,prfPrdGasNetBillSm,prfPrdCondensateNetMillSm3,prfPrdNGLNetMillSm3,prfPrdOeNetMillSm3,prfPrdProducedWaterInFieldMillSm3", data)
+  fd.write("\n".join(data))
+

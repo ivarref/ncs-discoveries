@@ -27,45 +27,59 @@ var margin = {top: 35, right: 60, bottom: 35, left: 60},
     width = 960 - margin.left - margin.right,
     height = 470 - margin.top - margin.bottom
 
-var svg = d3.select("body").append("svg")
+var svg1 = d3.select("body").append("svg")
     .attr("width", width + margin.left + margin.right)
     .attr("height", height + margin.top + margin.bottom)
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
 
-d3.tsv('data/data.tsv', function(err, data) { 
-  data.forEach(function(d) {
-    d.discovery_year = +d.discovery_year
-    d.recoverable_oil = +d.recoverable_oil * 6.29 / 1000.0
-    d.recoverable_gas = +d.recoverable_gas * 6.29 / 1000.0
+d3.select('body').append('div')
+
+var svg2 = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .style("margin-top", "1em")
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+
+function prop(p) { return function(d) { return d[p] } }
+
+function get_cumulative_produced(data) {
+  data.forEach(function(d) { 
+    d.prfYear = +d.prfYear
+    d.prfPrdOilNetMillSm = +d.prfPrdOilNetMillSm
+    d.prfPrdGasNetBillSm = +d.prfPrdGasNetBillSm
   })
 
-  var nested_data = d3.nest()
-  .key(function(d) { return d.discovery_year })
-  .sortKeys(d3.ascending)
-  .entries(data)
+  data.sort(function(a, b) { return a.prfYear - b.prfYear })
 
-  nested_data.forEach(function(d, i) {
-    var sum_oil = function(d) { return d.recoverable_oil }
-    var sum_gas = function(d) { return d.recoverable_gas }
+  var cumulative_production = {}
 
-    d.recoverable_oil = d3.sum(d.values, sum_oil)
-    d.recoverable_gas = d3.sum(d.values, sum_gas)
-
-    d.cumulative_oil = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), sum_oil)
-    d.cumulative_gas = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), sum_gas)
+  data.forEach(function(d, i) {
+    var values = data.filter(function(d, ii) { return ii <= i })
+    cumulative_production[d.prfYear] = {
+        'oil' : d3.sum(values, prop('prfPrdOilNetMillSm')) * 6.29 / 1000.0,
+        'gas' : d3.sum(values, prop('prfPrdGasNetBillSm')) * 6.29 / 1000.0,
+    }
   })
 
+  return function(year) {
+    return (year in cumulative_production) ?  cumulative_production[year] : { 'oil' : 0.0, 'gas' : 0.0 }
+  }
+}
+
+function update(svg, nested_data, resource, colors) {
   var y = d3.scale.linear().range([height, 0])
   var x = d3.scale.ordinal().rangeBands([0, width], .1)
-  var color = d3.scale.category10()
+
+  var resource_capitalized = resource.charAt(0).toUpperCase() + resource.substring(1)
 
   var idx = nested_data.length-1
-  var key = 'cumulative_oil'
+  var recoverable_resource = 'cumulative_recoverable_' + resource
+  var produced_resource = 'cumulative_produced_' + resource
 
-  //x.domain([nested_data[0].key, nested_data[idx].key])
-  x.domain(nested_data.map(function(d) { return d.key })) // nested_data[0].key, nested_data[idx].key])
-  y.domain([0, nested_data[idx][key]])
+  x.domain(nested_data.map(function(d) { return d.key }))
+  y.domain([0, nested_data[idx][recoverable_resource]])
 
   var y2 = d3.scale.linear().range([height, 0])
   y2.domain([0, 100])
@@ -83,11 +97,7 @@ d3.tsv('data/data.tsv', function(err, data) {
 
   var xAxis = d3.svg.axis().scale(x).orient("bottom")
   .tickFormat(function(d) { return d })
-  .tickValues(x.domain().filter(function(d, i) {
-    return i == 0 || i == x.domain().length-1
-          || parseInt(d) % 5 == 0
-  }))
-
+  .tickValues(x.domain().filter(function(d, i) { return i == 0 || i == x.domain().length-1 || parseInt(d) % 5 == 0 }))
 
   singleElement(svg, 'g', 'xAxis')
   .attr('class', 'x axis')
@@ -110,38 +120,84 @@ d3.tsv('data/data.tsv', function(err, data) {
   /* 
   Goals: 
   ======
-  Show remaining values (lighter bars)
-  Show gas, petroleum
-  Add caption
+  Differentiate recoverable by field status (producing, PDO-approved, planning and likely)
+  Show all petroleum
+  Add info box with numbers for most recent year
 
   Done
   ====
+  Colors by resource type
+  Show gas
+  Show remaining values (stronger color)
   Use bars.
   */
 
-  //var w = width / nested_data.length
+  // Total recoverable resources
   singleElement(svg, 'g', 'bars1')
   .selectAll('rect').data(nested_data)
   .enter()
   .append('rect')
-  .attr('height', function(d) { return height - y(d[key]) } )
+  .attr('height', function(d) { return height - y(d[recoverable_resource]) } )
   .attr('width', x.rangeBand())
   .attr('x', function(d, i) { return x(d.key) })
-  .attr('y', function(d) { return y(d[key]) })
-  .style('fill', "#187418")
+  .attr('y', function(d) { return y(d[recoverable_resource]) })
+  .style('fill', colors['remaining']) 
 
-  singleElement(svg, 'text', 'heading')
+  // Produced recoverable resources
+  singleElement(svg, 'g', 'bars2')
+  .selectAll('rect').data(nested_data)
+  .enter()
+  .append('rect')
+  .attr('height', function(d) { return height - y(d[produced_resource]) } )
+  .attr('width', x.rangeBand())
+  .attr('x', function(d, i) { return x(d.key) })
+  .attr('y', function(d) { return y(d[produced_resource]) })
+  .style('fill', colors['produced'])
+
+  function ww(elm) { return elm.node().getBBox().width }
+
+  var heading1 = singleElement(svg, 'text', 'heading1')
   .attr("transform", "translate(" + (0) + "," + (0) + ")")
-  .attr("dy", "-.29em")
-  .attr("class", "heading")
-  .text('When was the Oil on Norwegian Continental Shelf discovered?')
+  .attr("dy", "-.29em").attr("class", "heading")
+  .html('When was the&nbsp;')
+
+  var heading2 = singleElement(svg, 'text', 'heading2')
+  .attr("transform", "translate(" + ww(heading1) + "," + (0) + ")")
+  .attr("dy", "-.29em").attr("class", "heading")
+  .style('fill', colors['remaining'])
+  .style('font-weight', '900')
+  .html(resource_capitalized + "&nbsp;")
+
+  var heading3 = singleElement(svg, 'text', 'heading3')
+  .attr("transform", "translate(" + (ww(heading1) + ww(heading2)) + "," + (0) + ")")
+  .attr("dy", "-.29em").attr("class", "heading")
+  .text('on the Norwegian Continental Shelf discovered?')
+
+  /*
+  var info1 = singleElement(svg, 'text', 'info1')
+  .attr("transform", "translate(" + (0) + "," + (0) + ")")
+  .attr("dy", ".95em").attr("dx", ".25em").style('font-style', 'italic')
+  .html('And when was the ' + resource_capitalized + '&nbsp;')
+
+  var info2 = singleElement(svg, 'text', 'info2')
+  .attr("transform", "translate(" + (ww(info1)) + "," + (0) + ")")
+  .attr("dy", ".95em").attr("dx", ".25em").style('font-style', 'italic')
+  .style('fill', colors['produced'])
+  .style('font-weight', 'bold')
+  .text('produced')
+
+  var info3 = singleElement(svg, 'text', 'info3')
+  .attr("transform", "translate(" + (ww(info1) + ww(info2)) + "," + (0) + ")")
+  .attr("dy", ".95em").attr("dx", ".25em").style('font-style', 'italic')
+  .text('?')
+  */
 
   singleElement(svg, 'text', 'yaxislabel')
   .attr("transform", "translate(" + (width+35) + "," + (height/2) + ") rotate(90)")
   .attr("dy", "-.29em")
   .attr('text-anchor', 'middle')
   .style('font-variant', 'small-caps')
-  .text('Cumulative Discoveries of Oil in Giga (Billion) Barrels, Gb')
+  .text('Cumulative Discoveries of ' + resource_capitalized + ' in Giga (Billion) Barrels, Gb')
 
   singleElement(svg, 'text', 'yaxislabel2')
   .attr("transform", "translate(" + (-35) + "," + (height/2) + ") rotate(-90)")
@@ -165,7 +221,46 @@ d3.tsv('data/data.tsv', function(err, data) {
   .style("text-anchor", "end")
   .style('font-variant', 'small-caps')
   .text('Diagram by Refsdal.Ivar@gmail.com')
-})
+}
+
+d3.tsv('data/data.tsv', function(err, data) { 
+d3.csv('data/produced.csv', function(err, data_production) {
+
+  var cumulative_production = get_cumulative_produced(data_production)
+
+  data.forEach(function(d) {
+    d.discovery_year = +d.discovery_year
+    d.recoverable_oil = +d.recoverable_oil * 6.29 / 1000.0
+    d.recoverable_gas = +d.recoverable_gas * 6.29 / 1000.0
+
+    d.produced_oil = +d.produced_oil * 6.29 / 1000.0
+    d.produced_gas = +d.produced_gas * 6.29 / 1000.0
+  })
+
+  var nested_data = d3.nest()
+  .key(function(d) { return d.discovery_year })
+  .sortKeys(d3.ascending)
+  .entries(data)
+
+  nested_data.forEach(function(d, i) {
+
+    d.recoverable_oil = d3.sum(d.values, prop('recoverable_oil'))
+    d.recoverable_gas = d3.sum(d.values, prop('recoverable_gas'))
+
+    d.cumulative_recoverable_oil = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), prop('recoverable_oil'))
+    d.cumulative_recoverable_gas = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), prop('recoverable_gas'))
+
+    d.cumulative_produced_oil = cumulative_production(parseInt(d.key)).oil
+    d.cumulative_produced_gas = cumulative_production(parseInt(d.key)).gas
+  })
+
+
+  var col_oil = { 'remaining' : '#187418', 'produced' : '#5DD45D' /*d3.rgb(152,223,138)*/ }
+  var col_gas = { 'remaining' : d3.rgb(254,24,24), 'produced' : d3.rgb(255,152,150) }
+  update(svg1, nested_data, 'oil', col_oil)
+  update(svg2, nested_data, 'gas', col_gas)
+
+}) })
 
 </script>
 </body>
