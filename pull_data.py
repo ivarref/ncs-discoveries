@@ -33,6 +33,17 @@ def set_output_encoding(encoding='utf-8'):
   if current is None :
     sys.stderr = codecs.getwriter(encoding)(sys.stderr)
 
+def break_on_duplicates():
+  entries = []
+  def stop_on_duplicates(elem):
+    if elem in entries:
+      import sys
+      print "ERROR. Got duplicate " + str(elem)
+      sys.exit(-1)
+    entries.append(elem)
+
+  return stop_on_duplicates
+
 def get_url(url, filename):
   import urllib2
   import os
@@ -63,6 +74,11 @@ if values != data[0]:
 data = [x.split(",") for x in data[1:] if x.strip() != ""]
 
 (dscName,cmpLongName,dscCurrentActivityStatus,dscHcType,wlbName,nmaName,fldName,dscDateFromInclInField,dscDiscoveryYear,dscResInclInDiscoveryName,dscOwnerKind,dscOwnerName,dscNpdidDiscovery,fldNpdidField,wlbNpdidWellbore,dscFactPageUrl,dscFactMapUrl,dscDateUpdated,dscDateUpdatedMax,DatesyncNPD) = tuple([idx for (idx, x) in enumerate(values.split(","))])
+
+check = break_on_duplicates()
+for line in data:
+  if line[fldNpdidField] != '':
+    check(line[fldNpdidField])
 
 #PDO APPROVED
 #PLANNING PHASE
@@ -159,12 +175,12 @@ npdid_to_prod = npdid_to_production()
 if not os.path.exists('data'):
   os.makedirs('data')
 with codecs.open('data/data.tsv', encoding='utf-8', mode='w') as fd:
-  fd.write('field discovery_year recoverable_oil recoverable_gas produced_oil produced_gas\n'.replace(' ', '\t'))
+  fd.write('field discovery_year status recoverable_oil recoverable_gas produced_oil produced_gas\n'.replace(' ', '\t'))
   for (year, npdid, name, status, oil, gas) in result:
     produced = npdid_to_prod(npdid)
     produced_oil = "%.2f" % (produced['oil'])
     produced_gas = "%.2f" % (produced['gas'])
-    fd.write("\t".join([name, str(year), str(oil), str(gas), produced_oil, produced_gas] ))
+    fd.write("\t".join([name, str(year), status, str(oil), str(gas), produced_oil, produced_gas] ))
     fd.write("\n")
 
 with codecs.open('data/produced.csv', encoding='utf-8', mode='w') as fd:

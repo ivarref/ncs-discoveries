@@ -75,8 +75,8 @@ function update(svg, nested_data, resource, colors) {
   var resource_capitalized = resource.charAt(0).toUpperCase() + resource.substring(1)
 
   var idx = nested_data.length-1
-  var recoverable_resource = 'cumulative_recoverable_' + resource
-  var produced_resource = 'cumulative_produced_' + resource
+  var recoverable_resource = 'cumulative_recoverable'
+  var produced_resource = 'cumulative_produced'
 
   x.domain(nested_data.map(function(d) { return d.key }))
   y.domain([0, nested_data[idx][recoverable_resource]])
@@ -120,6 +120,7 @@ function update(svg, nested_data, resource, colors) {
   /* 
   Goals: 
   ======
+  What is PDO-approved?
   Differentiate recoverable by field status (producing, PDO-approved, planning and likely)
   Show all petroleum
   Add info box with numbers for most recent year
@@ -132,16 +133,52 @@ function update(svg, nested_data, resource, colors) {
   Use bars.
   */
 
-  // Total recoverable resources
-  singleElement(svg, 'g', 'bars1')
+  // 'Regular' recoverable resources
+  singleElement(svg, 'g', 'bars_regular')
   .selectAll('rect').data(nested_data)
   .enter()
   .append('rect')
-  .attr('height', function(d) { return height - y(d[recoverable_resource]) } )
+  .attr('height', function(d) { return height - y(d.cumulative_recoverable_regular) } )
   .attr('width', x.rangeBand())
   .attr('x', function(d, i) { return x(d.key) })
-  .attr('y', function(d) { return y(d[recoverable_resource]) })
+  .attr('y', function(d) { return y(d.cumulative_recoverable_regular) })
   .style('fill', colors['remaining']) 
+
+  // PDO approved reserves
+  singleElement(svg, 'g', 'bars_pdo_approved')
+  .selectAll('rect').data(nested_data)
+  .enter()
+  .append('rect')
+  .attr('height', function(d) { return height - y(d.cumulative_recoverable_pdo_approved) } )
+  .attr('width', x.rangeBand())
+  .attr('x', function(d, i) { return x(d.key) })
+  .attr('y', function(d) { return y(d.cumulative_recoverable_regular+d.cumulative_recoverable_pdo_approved) })
+  .style('fill', 'mediumblue')
+  .style('fill-opacity', '100%')
+
+  // Planning phase reserves
+  singleElement(svg, 'g', 'bars_planning_phase')
+  .selectAll('rect').data(nested_data)
+  .enter()
+  .append('rect')
+  .attr('height', function(d) { return height - y(d.cumulative_recoverable_planning_phase) } )
+  .attr('width', x.rangeBand())
+  .attr('x', function(d, i) { return x(d.key) })
+  .attr('y', function(d) { return y(d.cumulative_recoverable_regular+d.cumulative_recoverable_pdo_approved+d.cumulative_recoverable_planning_phase) })
+  .style('fill', '#ffaa00')
+  .style('fill-opacity', '50%')
+
+  // Likely resources
+  singleElement(svg, 'g', 'bars_development_likely')
+  .selectAll('rect').data(nested_data)
+  .enter()
+  .append('rect')
+  .attr('height', function(d) { return height - y(d.cumulative_recoverable_likely) } )
+  .attr('width', x.rangeBand())
+  .attr('x', function(d, i) { return x(d.key) })
+  .attr('y', function(d) { return y(d.cumulative_recoverable_regular+d.cumulative_recoverable_likely+d.cumulative_recoverable_pdo_approved+d.cumulative_recoverable_planning_phase) })
+  .style('fill', '#00aacc')
+  .style('fill-opacity', '50%')
 
   // Produced recoverable resources
   singleElement(svg, 'g', 'bars2')
@@ -171,9 +208,15 @@ function update(svg, nested_data, resource, colors) {
   var heading3 = singleElement(svg, 'text', 'heading3')
   .attr("transform", "translate(" + (ww(heading1) + ww(heading2)) + "," + (0) + ")")
   .attr("dy", "-.29em").attr("class", "heading")
-  .text('on the Norwegian Continental Shelf discovered?')
+  .html('on the Norwegian Continental Shelf discovered?')
 
   /*
+  var heading4 = singleElement(svg, 'text', 'heading4')
+  .attr("transform", "translate(" + (ww(heading1) + ww(heading2) + ww(heading3)) + "," + (0) + ")")
+  .attr("dy", "-.29em").attr("class", "heading")
+  .html('produced')
+  .style('fill', colors['produced'])
+
   var info1 = singleElement(svg, 'text', 'info1')
   .attr("transform", "translate(" + (0) + "," + (0) + ")")
   .attr("dy", ".95em").attr("dx", ".25em").style('font-style', 'italic')
@@ -237,28 +280,40 @@ d3.csv('data/produced.csv', function(err, data_production) {
     d.produced_gas = +d.produced_gas * 6.29 / 1000.0
   })
 
-  var nested_data = d3.nest()
-  .key(function(d) { return d.discovery_year })
-  .sortKeys(d3.ascending)
-  .entries(data)
+  function build_data(resource) {
+    var nested_data = d3.nest()
+    .key(function(d) { return d.discovery_year })
+    .key(function(d) { return "PRODUCING,SHUT DOWN".indexOf(d.status) != -1 ? 'REGULAR' : d.status })
+    .sortKeys(d3.ascending)
+    .rollup(function(values) { return d3.sum(values, prop('recoverable_' + resource)) })
+    .entries(data)
+    .map(function(d) {
+      var res = {'key' : d.key}
+      for (var i=0; i<d.values.length; i++) {
+        var v = d.values[i]
+        res[v.key] = v.values
+      }
+      res['total'] = d3.sum(d.values, prop('values'))
+      res['cumulative_produced'] = cumulative_production(parseInt(d.key))[resource]
+      return res
+    })
 
-  nested_data.forEach(function(d, i) {
-
-    d.recoverable_oil = d3.sum(d.values, prop('recoverable_oil'))
-    d.recoverable_gas = d3.sum(d.values, prop('recoverable_gas'))
-
-    d.cumulative_recoverable_oil = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), prop('recoverable_oil'))
-    d.cumulative_recoverable_gas = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), prop('recoverable_gas'))
-
-    d.cumulative_produced_oil = cumulative_production(parseInt(d.key)).oil
-    d.cumulative_produced_gas = cumulative_production(parseInt(d.key)).gas
-  })
-
+    nested_data.forEach(function(d, i) {
+      d.cumulative_recoverable = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), prop('total'))
+      d.cumulative_recoverable_regular = d3.sum(nested_data.filter(function(dd, ii) { return 'REGULAR' in dd && ii <= i }), prop('REGULAR'))
+      d.cumulative_recoverable_pdo_approved = d3.sum(nested_data.filter(function(dd, ii) { return 'PDO APPROVED' in dd && ii <= i }), prop('PDO APPROVED'))
+      var likely = 'DEVELOPMENT LIKELY BUT NOT CLARIFIED'
+      d.cumulative_recoverable_planning_phase = d3.sum(nested_data.filter(function(dd, ii) { return 'PLANNING PHASE' in dd && ii <= i }), prop('PLANNING PHASE'))
+      d.cumulative_recoverable_likely = d3.sum(nested_data.filter(function(dd, ii) { return likely in dd && ii <= i }), prop(likely))
+    })
+    return nested_data
+  }
 
   var col_oil = { 'remaining' : '#187418', 'produced' : '#5DD45D' /*d3.rgb(152,223,138)*/ }
   var col_gas = { 'remaining' : d3.rgb(254,24,24), 'produced' : d3.rgb(255,152,150) }
-  update(svg1, nested_data, 'oil', col_oil)
-  update(svg2, nested_data, 'gas', col_gas)
+  update(svg1, build_data('oil'), 'oil', col_oil)
+  update(svg2, build_data('gas'), 'gas', col_gas)
+  //update(svg2, nested_data, 'gas', col_gas)
 
 }) })
 
