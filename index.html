@@ -42,6 +42,15 @@ var svg2 = d3.select("body").append("svg")
     .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
 
+d3.select('body').append('div')
+
+var svg3 = d3.select("body").append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .style("margin-top", "1em")
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+
 function prop(p) { return function(d) { return d[p] } }
 
 function get_cumulative_produced(data) {
@@ -49,6 +58,7 @@ function get_cumulative_produced(data) {
     d.prfYear = +d.prfYear
     d.prfPrdOilNetMillSm = +d.prfPrdOilNetMillSm
     d.prfPrdGasNetBillSm = +d.prfPrdGasNetBillSm
+    d.prfPrdOeNetMillSm3 = +d.prfPrdOeNetMillSm3
   })
 
   data.sort(function(a, b) { return a.prfYear - b.prfYear })
@@ -60,11 +70,12 @@ function get_cumulative_produced(data) {
     cumulative_production[d.prfYear] = {
         'oil' : d3.sum(values, prop('prfPrdOilNetMillSm')) * 6.29 / 1000.0,
         'gas' : d3.sum(values, prop('prfPrdGasNetBillSm')) * 6.29 / 1000.0,
+        'oe' : d3.sum(values, prop('prfPrdOeNetMillSm3')) * 6.29 / 1000.0
     }
   })
 
   return function(year) {
-    return (year in cumulative_production) ?  cumulative_production[year] : { 'oil' : 0.0, 'gas' : 0.0 }
+    return (year in cumulative_production) ?  cumulative_production[year] : { 'oil' : 0.0, 'gas' : 0.0, 'oe' : 0.0 }
   }
 }
 
@@ -120,14 +131,14 @@ function update(svg, nested_data, resource, colors) {
   /* 
   Goals: 
   ======
-  What is PDO-approved?
-  Differentiate recoverable by field status (producing, PDO-approved, planning and likely)
-  Show all petroleum
   Add info box with numbers for most recent year
 
   Done
   ====
+  Show all petroleum
+  What is PDO-approved? (Plan for development and operation)
   Colors by resource type
+  Differentiate recoverable by field status (producing, PDO-approved, planning and likely)
   Show gas
   Show remaining values (stronger color)
   Use bars.
@@ -196,7 +207,7 @@ function update(svg, nested_data, resource, colors) {
   var heading1 = singleElement(svg, 'text', 'heading1')
   .attr("transform", "translate(" + (0) + "," + (0) + ")")
   .attr("dy", "-.29em").attr("class", "heading")
-  .html('When was the&nbsp;')
+  .html('When was' + (resource==='All Petroleum'? '' : " the") + '&nbsp;')
 
   var heading2 = singleElement(svg, 'text', 'heading2')
   .attr("transform", "translate(" + ww(heading1) + "," + (0) + ")")
@@ -275,6 +286,7 @@ d3.csv('data/produced.csv', function(err, data_production) {
     d.discovery_year = +d.discovery_year
     d.recoverable_oil = +d.recoverable_oil * 6.29 / 1000.0
     d.recoverable_gas = +d.recoverable_gas * 6.29 / 1000.0
+    d.recoverable_oe  = +d.recoverable_oe  * 6.29 / 1000.0
 
     d.produced_oil = +d.produced_oil * 6.29 / 1000.0
     d.produced_gas = +d.produced_gas * 6.29 / 1000.0
@@ -298,11 +310,11 @@ d3.csv('data/produced.csv', function(err, data_production) {
       return res
     })
 
+    var likely = 'DEVELOPMENT LIKELY BUT NOT CLARIFIED'
     nested_data.forEach(function(d, i) {
       d.cumulative_recoverable = d3.sum(nested_data.filter(function(dd, ii) { return ii <= i }), prop('total'))
       d.cumulative_recoverable_regular = d3.sum(nested_data.filter(function(dd, ii) { return 'REGULAR' in dd && ii <= i }), prop('REGULAR'))
       d.cumulative_recoverable_pdo_approved = d3.sum(nested_data.filter(function(dd, ii) { return 'PDO APPROVED' in dd && ii <= i }), prop('PDO APPROVED'))
-      var likely = 'DEVELOPMENT LIKELY BUT NOT CLARIFIED'
       d.cumulative_recoverable_planning_phase = d3.sum(nested_data.filter(function(dd, ii) { return 'PLANNING PHASE' in dd && ii <= i }), prop('PLANNING PHASE'))
       d.cumulative_recoverable_likely = d3.sum(nested_data.filter(function(dd, ii) { return likely in dd && ii <= i }), prop(likely))
     })
@@ -311,9 +323,10 @@ d3.csv('data/produced.csv', function(err, data_production) {
 
   var col_oil = { 'remaining' : '#187418', 'produced' : '#5DD45D' /*d3.rgb(152,223,138)*/ }
   var col_gas = { 'remaining' : d3.rgb(254,24,24), 'produced' : d3.rgb(255,152,150) }
-  update(svg1, build_data('oil'), 'oil', col_oil)
-  update(svg2, build_data('gas'), 'gas', col_gas)
-  //update(svg2, nested_data, 'gas', col_gas)
+  var col_oe = { 'remaining' : '#525252', 'produced' : '#ccc' }
+  update(svg1, build_data('oil'), 'Oil', col_oil)
+  update(svg2, build_data('gas'), 'Gas', col_gas)
+  update(svg3, build_data('oe'), 'All Petroleum', col_oe)
 
 }) })
 
