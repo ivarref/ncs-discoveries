@@ -209,7 +209,7 @@ function update(svg, nested_data, resource, colors) {
   var heading1 = singleElement(svg, 'text', 'heading1')
   .attr("transform", "translate(" + (0) + "," + (0) + ")")
   .attr("dy", "-.29em").attr("class", "heading")
-  .html('What is remaining of ' + (resource==='All Petroleum'? '' : " the") + '&nbsp;')
+  .html('What is remaining of' + (resource==='All Petroleum'? '' : " the") + '&nbsp;')
 
   var heading2 = singleElement(svg, 'text', 'heading2')
   .attr("transform", "translate(" + ww(heading1) + "," + (0) + ")")
