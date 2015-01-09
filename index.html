@@ -13,7 +13,7 @@ text.heading { font: 22px sans-serif; font-variant: small-caps; font-weight: bol
   shape-rendering: crispEdges;
 }
 </style>
-<title>When was the Petroleum on the Norwegian Continental Shelf discovered?</title>
+<title>What is remaining of Petroleum on the Norwegian Continental Shelf discovered?</title>
 <body>
 <script src="d3.v3.min.js"></script>
 <script>
@@ -25,7 +25,7 @@ function singleElement(root, elementtype, id) {
 
 var margin = {top: 35, right: 60, bottom: 35, left: 60},
     width = 960 - margin.left - margin.right,
-    height = 470 - margin.top - margin.bottom
+    height = 500 - margin.top - margin.bottom
 
 var svg1 = d3.select("body").append("svg")
     .attr("width", width + margin.left + margin.right)
@@ -80,6 +80,10 @@ function get_cumulative_produced(data) {
 }
 
 function update(svg, nested_data, resource, colors) {
+  colors['likely'] = 'fuchsia'
+  colors['planning'] = 'gold'
+  colors['pdo'] = 'cornflowerblue'
+
   var y = d3.scale.linear().range([height, 0])
   var x = d3.scale.ordinal().rangeBands([0, width], .1)
 
@@ -131,6 +135,7 @@ function update(svg, nested_data, resource, colors) {
   /* 
   Goals: 
   ======
+  Use 100 percent for total producing/shutdown fields
   Add info box with numbers for most recent year
 
   Done
@@ -164,8 +169,7 @@ function update(svg, nested_data, resource, colors) {
   .attr('width', x.rangeBand())
   .attr('x', function(d, i) { return x(d.key) })
   .attr('y', function(d) { return y(d.cumulative_recoverable_regular+d.cumulative_recoverable_pdo_approved) })
-  .style('fill', 'mediumblue')
-  .style('fill-opacity', '100%')
+  .style('fill', colors['pdo'])
 
   // Planning phase reserves
   singleElement(svg, 'g', 'bars_planning_phase')
@@ -176,8 +180,7 @@ function update(svg, nested_data, resource, colors) {
   .attr('width', x.rangeBand())
   .attr('x', function(d, i) { return x(d.key) })
   .attr('y', function(d) { return y(d.cumulative_recoverable_regular+d.cumulative_recoverable_pdo_approved+d.cumulative_recoverable_planning_phase) })
-  .style('fill', '#ffaa00')
-  .style('fill-opacity', '50%')
+  .style('fill', colors['planning'])
 
   // Likely resources
   singleElement(svg, 'g', 'bars_development_likely')
@@ -188,8 +191,7 @@ function update(svg, nested_data, resource, colors) {
   .attr('width', x.rangeBand())
   .attr('x', function(d, i) { return x(d.key) })
   .attr('y', function(d) { return y(d.cumulative_recoverable_regular+d.cumulative_recoverable_likely+d.cumulative_recoverable_pdo_approved+d.cumulative_recoverable_planning_phase) })
-  .style('fill', '#00aacc')
-  .style('fill-opacity', '50%')
+  .style('fill', colors['likely'])
 
   // Produced recoverable resources
   singleElement(svg, 'g', 'bars2')
@@ -207,7 +209,7 @@ function update(svg, nested_data, resource, colors) {
   var heading1 = singleElement(svg, 'text', 'heading1')
   .attr("transform", "translate(" + (0) + "," + (0) + ")")
   .attr("dy", "-.29em").attr("class", "heading")
-  .html('When was' + (resource==='All Petroleum'? '' : " the") + '&nbsp;')
+  .html('What is remaining of ' + (resource==='All Petroleum'? '' : " the") + '&nbsp;')
 
   var heading2 = singleElement(svg, 'text', 'heading2')
   .attr("transform", "translate(" + ww(heading1) + "," + (0) + ")")
@@ -219,39 +221,75 @@ function update(svg, nested_data, resource, colors) {
   var heading3 = singleElement(svg, 'text', 'heading3')
   .attr("transform", "translate(" + (ww(heading1) + ww(heading2)) + "," + (0) + ")")
   .attr("dy", "-.29em").attr("class", "heading")
-  .html('on the Norwegian Continental Shelf discovered?')
+  .html('on the Norwegian Continental Shelf?')
 
-  /*
-  var heading4 = singleElement(svg, 'text', 'heading4')
-  .attr("transform", "translate(" + (ww(heading1) + ww(heading2) + ww(heading3)) + "," + (0) + ")")
-  .attr("dy", "-.29em").attr("class", "heading")
-  .html('produced')
-  .style('fill', colors['produced'])
+  var d = nested_data[nested_data.length-1]
+  var decimals = 2
+  var boxes = [
+    {name : "Resource type", rtext : 'Gboe (' + d.key + ')' }, 
+    {name: "Development likely", rtext : d.cumulative_recoverable_likely.toFixed(decimals), color: colors['likely']},
+    {name: "Planning phase", rtext : d.cumulative_recoverable_planning_phase.toFixed(decimals), color: colors['planning']}, 
+    {name: "PDO approved", rtext : d.cumulative_recoverable_pdo_approved.toFixed(decimals), color: colors['pdo']},
+    {name: "Remaining reserves", rtext : (d.cumulative_recoverable_regular-d.cumulative_produced).toFixed(decimals), color: colors['remaining'] }, 
+    {name: "Cumulative produced", rtext : d.cumulative_produced.toFixed(decimals), color: colors['produced'] },
+    {name: "Total", rtext : (d.cumulative_recoverable_regular + d.cumulative_recoverable_pdo_approved + d.cumulative_recoverable_planning_phase + d.cumulative_recoverable_likely).toFixed(decimals)}
+    ]
+  var box = { w: 210, h:boxes.length*16 + 5, margin: 25 }
 
-  var info1 = singleElement(svg, 'text', 'info1')
-  .attr("transform", "translate(" + (0) + "," + (0) + ")")
-  .attr("dy", ".95em").attr("dx", ".25em").style('font-style', 'italic')
-  .html('And when was the ' + resource_capitalized + '&nbsp;')
+  var legendbox = singleElement(svg, 'g', 'legendbox')
+  .attr("transform", "translate(" + (box.margin) + "," + (box.margin) + ")")
 
-  var info2 = singleElement(svg, 'text', 'info2')
-  .attr("transform", "translate(" + (ww(info1)) + "," + (0) + ")")
-  .attr("dy", ".95em").attr("dx", ".25em").style('font-style', 'italic')
-  .style('fill', colors['produced'])
+  legendbox.append('rect')
+  .attr('width', box.w)
+  .attr('height', 5 + 16*boxes.length)
+  .style('fill', '#eee')
+  .style('fill-opacity', '80%')
+  .style('stroke', 'black')
+  .style('stroke-width', '1px')
+
+  var ctx = legendbox.selectAll('g').data(boxes)
+  .enter().append('g')
+  .attr('transform', function(d,i) { return "translate(5," + (5+i*16) + ")" })
+
+  ctx
+  .filter(function(d,i) { return i >= 1 && i != boxes.length-1 })
+  .append('rect')
+  .attr('width', 10)
+  .attr('height', 10)
+  .style('fill', function(d) { return d.color })
+  .style('stroke', 'black')
+  .style('stroke-width', '1px')
+
+  var leftColText = ctx
+  .append('text')
+
+  leftColText
+  .attr('dx', function(d,i) { return (i == 0 || i==boxes.length-1) ? null : '1.25em' })
+  .attr('dy', '.755em')
+  .text(prop('name'))
+
+  leftColText
+  .filter(function(d,i) { return i == 0 || i == boxes.length-1 })
   .style('font-weight', 'bold')
-  .text('produced')
 
-  var info3 = singleElement(svg, 'text', 'info3')
-  .attr("transform", "translate(" + (ww(info1) + ww(info2)) + "," + (0) + ")")
-  .attr("dy", ".95em").attr("dx", ".25em").style('font-style', 'italic')
-  .text('?')
-  */
+  var rightColText = ctx
+  .append('text')
+
+  rightColText
+  .attr('transform', 'translate(' + box.w + ', 0)')
+  .attr('dy', '.755em')
+  .attr('dx', '-.75em')
+  .style('text-anchor', 'end')
+  .text(prop('rtext'))
+  .filter(function(d,i) { return i == 0 || i == boxes.length-1 })
+  .style('font-weight', 'bold')
 
   singleElement(svg, 'text', 'yaxislabel')
   .attr("transform", "translate(" + (width+35) + "," + (height/2) + ") rotate(90)")
   .attr("dy", "-.29em")
   .attr('text-anchor', 'middle')
   .style('font-variant', 'small-caps')
-  .text('Cumulative Discoveries of ' + resource_capitalized + ' in Giga (Billion) Barrels, Gb')
+  .text('Cumulative Discoveries of Giga (Billion) Barrels of Oil Equivalents, Gboe')
 
   singleElement(svg, 'text', 'yaxislabel2')
   .attr("transform", "translate(" + (-35) + "," + (height/2) + ") rotate(-90)")
@@ -259,7 +297,6 @@ function update(svg, nested_data, resource, colors) {
   .attr('text-anchor', 'middle')
   .style('font-variant', 'small-caps')
   .text('Percentage of Cumulative Discoveries')
-
 
   singleElement(svg, 'text', 'xaxislabel')
   .attr("transform", "translate(" + (width/2) + "," + (height + margin.bottom) + ")")
@@ -275,6 +312,13 @@ function update(svg, nested_data, resource, colors) {
   .style("text-anchor", "end")
   .style('font-variant', 'small-caps')
   .text('Diagram by Refsdal.Ivar@gmail.com')
+
+  singleElement(svg, 'text', 'sourceinfo')
+  .attr("transform", "translate(" + (width) + "," + (height) + ")")
+  .attr("dy", "-.29em")
+  .attr("dx", "-.29em")
+  .style("text-anchor", "end")
+  .text('Based on data from NPD')
 }
 
 d3.tsv('data/data.tsv', function(err, data) { 
@@ -323,8 +367,9 @@ d3.csv('data/produced.csv', function(err, data_production) {
 
   var col_oil = { 'remaining' : '#187418', 'produced' : '#5DD45D' /*d3.rgb(152,223,138)*/ }
   var col_gas = { 'remaining' : d3.rgb(254,24,24), 'produced' : d3.rgb(255,152,150) }
-  var col_oe = { 'remaining' : '#525252', 'produced' : '#ccc' }
+  var col_oe = { 'remaining' : 'saddlebrown', 'produced' : 'burlywood' }
   update(svg1, build_data('oil'), 'Oil', col_oil)
+  svg1.selectAll('text').text(function(d) { return d3.select(this).text().replace('Gboe', 'Gb').replace(' Equivalents', '') })
   update(svg2, build_data('gas'), 'Gas', col_gas)
   update(svg3, build_data('oe'), 'All Petroleum', col_oe)
 
