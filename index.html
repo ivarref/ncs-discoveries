@@ -206,22 +206,25 @@ function update(svg, nested_data, resource, colors) {
 
   function ww(elm) { return elm.node().getBBox().width }
 
+  var spacewidth = 0.278
   var heading1 = singleElement(svg, 'text', 'heading1')
   .attr("transform", "translate(" + (0) + "," + (0) + ")")
   .attr("dy", "-.29em").attr("class", "heading")
-  .html('What is remaining of' + (resource==='All Petroleum'? '' : " the") + '&nbsp;')
+  .text('What is remaining of' + (resource==='All Petroleum'? '' : " the")) // + '&nbsp;')
 
   var heading2 = singleElement(svg, 'text', 'heading2')
   .attr("transform", "translate(" + ww(heading1) + "," + (0) + ")")
   .attr("dy", "-.29em").attr("class", "heading")
+  .attr("dx", (spacewidth*1) + "em")
   .style('fill', colors['remaining'])
   .style('font-weight', '900')
-  .html(resource_capitalized + "&nbsp;")
+  .text(resource_capitalized)
 
   var heading3 = singleElement(svg, 'text', 'heading3')
   .attr("transform", "translate(" + (ww(heading1) + ww(heading2)) + "," + (0) + ")")
   .attr("dy", "-.29em").attr("class", "heading")
-  .html('on the Norwegian Continental Shelf?')
+  .attr("dx", (spacewidth*2) + "em")
+  .text('on the Norwegian Continental Shelf?')
 
   var d = nested_data[nested_data.length-1]
   var decimals = 2
