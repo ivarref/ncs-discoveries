@@ -376,6 +376,12 @@ d3.csv('data/produced.csv', function(err, data_production) {
   update(svg2, build_data('gas'), 'Gas', col_gas)
   update(svg3, build_data('oe'), 'All Petroleum', col_oe)
 
+  d3.select('body').append('div')
+  .append('a')
+  .attr('href', 'https://github.com/ivarref/ncs-discoveries')
+  .text('More info about this diagram.')
+  d3.select('body').append('div')
+
 }) })
 
 </script>
