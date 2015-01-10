@@ -12,7 +12,7 @@ _PDO_ is an abbrevation for Plan for Development and Operation.
 
 _Remaining reserves_ refers to recoverable reserves in active, producing fields.
 
-Discoveries that are not evaluated and where development is not every likely is not included in the diagram.
+Discoveries that are not evaluated and where development is not very likely is not included in the diagram.
 
 
 Comments
