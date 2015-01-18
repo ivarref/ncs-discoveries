@@ -14,6 +14,7 @@ from pprint import pprint
 # Output
 # field    discovery_year    produced_oil produced_gas ... etc .. recoverable_oil  recoverable_gas ..etc.. status (producing, shutdown, etc.)
 
+# Discovery -> Table view -> Overview
 discoveries_url_csv = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/discovery&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=2.150.32.28&CultureCode=en'
 
 resources_url_csv = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/discovery_reserves&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=2.150.32.28&CultureCode=en'
@@ -192,7 +193,45 @@ def npdid_to_production():
       return { 'oil' : Decimal(0), 'gas' : Decimal(0), 'oe' : Decimal(0) }
   return lookup
 
+# field -> Table view -> Status
+def shutdown_date():
+  dat = [x.strip() for x in get_url("http://factpages.npd.no/ReportServer?/FactPages/TableView/field_activity_status_hst&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=84.208.153.159&CultureCode=en", "cache/field_tableview_status.csv").split('\n') if x.strip() != '']
+  (fldName,fldStatusFromDate,fldStatusToDate,fldStatus,fldNpdidField,fldStatusDateUpdated,datesyncNPD) = verify_and_assign("fldName,fldStatusFromDate,fldStatusToDate,fldStatus,fldNpdidField,fldStatusDateUpdated,datesyncNPD", dat)
+  res = {}
+  dat = [x.split(",") for x in dat[1:]]
+  npdid_to_date = {}
+
+  for line in dat:
+    npdid = line[fldNpdidField]
+    fromdate = line[fldStatusFromDate].split(".")
+    fromdate.reverse()
+    fromdate = "-".join(fromdate)
+    if npdid not in npdid_to_date:
+      npdid_to_date[npdid] = fromdate
+    else:
+      npdid_to_date[npdid] = max(fromdate, npdid_to_date[npdid])
+
+  for line in dat:
+    npdid = line[fldNpdidField]
+    status = line[fldStatus]
+    fromdate = line[fldStatusFromDate].split(".")
+    fromdate.reverse()
+    fromdate = "-".join(fromdate)
+    if fromdate == npdid_to_date[npdid] and status == 'SHUT DOWN':
+      print line[fldName]
+    
+  def lookup_shutdown(npdid):
+    if npdid in res:
+      return res[npdid]
+    else:
+      return None
+  return lookup_shutdown
+
+
 npdid_to_prod = npdid_to_production()
+
+#print shutdown_date()('43437')
+#print "woooho"
 
 if not os.path.exists('data'):
   os.makedirs('data')
