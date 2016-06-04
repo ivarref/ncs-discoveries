@@ -120,7 +120,6 @@ def change_column_order(df, col_name, index):
 m = pd.concat([field_reserve, discovery_resource])
 m = m.rename(columns = { u'dscDiscoveryYear' : 'discoveryYear',
                          u'nmaName' : 'mainArea'})
-print m.columns
 
 cols = [u'name',
         u'mainArea',
@@ -136,6 +135,9 @@ for (idx, col) in enumerate(cols):
 elephants =  m[m.recoverableOeMillSm3 >= 79.0]
 elephants = elephants.sort_values(by='discoveryYear', ascending=False)
 elephants.to_csv('elephants.tsv', sep='\t', index=False)
+
+m = m.sort_values(by='discoveryYear', ascending=False)
+m.to_csv('field_discovery.tsv', sep='\t', index=False)
 
 #import ipdb; ipdb.set_trace()
 
