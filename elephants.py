@@ -8,7 +8,6 @@ pd.set_option('display.width', 1000)
 from StringIO import StringIO
 requests_cache.install_cache('cached')
 
-
 def keep_fields(frm, to_keep):
     seen_fields = []
     for field in frm.columns:
@@ -128,7 +127,8 @@ for (idx, col) in enumerate(cols):
     m = change_column_order(m, col, idx)
 
 elephants =  m[m.recoverableOe >= 79.0]
-print elephants.sort_values(by='discoveryYear', ascending=False)
+elephants = elephants.sort_values(by='discoveryYear', ascending=False)
+elephants.to_csv('elephants.tsv', sep='\t', index=False)
 
 #import ipdb; ipdb.set_trace()
 
