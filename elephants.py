@@ -4,6 +4,7 @@
 import requests
 import requests_cache
 import pandas as pd
+import numpy as np
 pd.set_option('display.width', 1000)
 from StringIO import StringIO
 requests_cache.install_cache('cached')
@@ -161,6 +162,20 @@ def petroleum_production():
     production['year'] = production.index
     kk = m.groupby(by='discoveryYear').sum().cumsum()
     kk['year'] = kk.index
+    missing_production_years = [year for year in kk.year.values if year not in production.index.values]
+    ff = pd.DataFrame(np.zeros((len(missing_production_years), len(production.columns))), columns=production.columns)
+    ff.index = missing_production_years
+    ff.year = ff.index
+    production = ff.append(production)
+
+
+    missing_disc_years = [year for year in production.index.values if year not in kk.index.values]
+    for year in missing_disc_years:
+        copy = kk[kk.year == year-1].copy()
+        copy.year = year
+        copy.index = [year]
+        kk = kk.append(copy)
+    kk = kk.sort_values(by='year')
     mm = pd.merge(kk, production, on='year')
 
     mm['tmp'] = mm.recoverableOilMillSm3 - mm.prfPrdOilNetMillSm3
@@ -214,6 +229,5 @@ def petroleum_production():
     #import pylab; pylab.show()
 
 
-import ipdb; ipdb.set_trace()
 petroleum_production()
 
