@@ -7,6 +7,12 @@ import pandas as pd
 pd.set_option('display.width', 1000)
 from StringIO import StringIO
 requests_cache.install_cache('cached')
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import matplotlib
+import pylab
+import datetime
+#matplotlib.style.use('ggplot')
 
 def keep_fields(frm, to_keep):
     seen_fields = []
@@ -139,5 +145,75 @@ elephants.to_csv('elephants.tsv', sep='\t', index=False)
 m = m.sort_values(by='discoveryYear', ascending=False)
 m.to_csv('field_discovery.tsv', sep='\t', index=False)
 
-#import ipdb; ipdb.set_trace()
+def petroleum_production():
+    url = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/field_production_totalt_NCS_year__DisplayAllRows&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=80.212.17.244&CultureCode=en'
+    res = requests.get(url).text[1:].split("\n")
+    production = pd.read_csv(StringIO("\n".join(res)))
+    columns = [u'prfYear',
+               u'prfPrdOilNetMillSm3',
+               u'prfPrdGasNetBillSm3',
+               u'prfPrdOeNetMillSm3',
+               #u'prfPrdCondensateNetMillSm3', #u'prfPrdNGLNetMillSm3', #u'prfPrdProducedWaterInFieldMillSm3'
+    ]
+    production = keep_fields(production, columns)
+    production = production.sort_values(by='prfYear', ascending=True)
+    production = production.groupby(by='prfYear').sum().cumsum()
+    production['year'] = production.index
+    kk = m.groupby(by='discoveryYear').sum().cumsum()
+    kk['year'] = kk.index
+    mm = pd.merge(kk, production, on='year')
+
+    mm['tmp'] = mm.recoverableOilMillSm3 - mm.prfPrdOilNetMillSm3
+    mm['tmp'] = (100.0 * mm.tmp) / mm.tmp.max()
+    maxyear = mm[mm.tmp == mm.tmp.max()].year.values[0]
+    d = 'Gjenverande Olje i bakken. %d=100' % (maxyear)
+    mm[d] = mm.tmp
+
+    mm['tmp'] = (mm.recoverableGasBillSm3 - mm.prfPrdGasNetBillSm3)
+    mm['tmp'] = (100.0 * mm.tmp) / mm.tmp.max()
+    maxyear = mm[mm.tmp == mm.tmp.max()].year.values[0]
+    d2 = 'Gjenverande Gass i bakken. %d=100' % (maxyear)
+    mm[d2] = mm.tmp
+
+    mm['tmp'] = (mm.recoverableOeMillSm3 - mm.prfPrdOeNetMillSm3)
+    mm['tmp'] = (100.0 * mm.tmp) / mm.tmp.max()
+    maxyear = mm[mm.tmp == mm.tmp.max()].year.values[0]
+    d3 = 'Gjenverande Petroleum i bakken. %d=100' % (maxyear)
+    mm[d3] = mm.tmp
+
+    columns = [u'year', d2, d, d3]
+    mm = keep_fields(mm, columns)
+    for (idx, col) in enumerate([d2, d3, d]):
+        mm = change_column_order(mm, col, idx)
+
+    mm.index = mm.year
+    mm[u'År'] = pd.to_datetime(mm[u'year'], format='%Y')
+    mm.index = mm[u'År']
+    mm.index = mm.index.astype(datetime.datetime)
+    mm = mm.drop(u'year', 1)
+    plot = mm.plot()
+    (xmin, xmax, ymin, ymax) = plot.axis()
+    ymax = 105
+    plot.axis((xmin, xmax, 0, ymax))
+    fig = matplotlib.pyplot.gcf()
+    ax = fig.axes[0]
+
+    dd = d
+    txt = "Olje %4d=%.f" % (mm.index[-1].year, mm[dd].values[-1])
+    ax.annotate(txt, (mdates.date2num(mm.index.values[-1]), mm[dd].values[-1]), xytext=(-10, -20), textcoords='offset points', ha='right', va='baseline', arrowprops={"arrowstyle" : '-|>', "mutation_scale":500**.5})
+
+    dd = d2
+    txt = "Gass %4d=%.f" % (mm.index[-1].year, mm[dd].values[-1])
+    ax.annotate(txt, (mdates.date2num(mm.index.values[-1]), mm[dd].values[-1]), xytext=(-10, 20), textcoords='offset points', ha='right', va='baseline', arrowprops={"arrowstyle" : '-|>', "mutation_scale":500**.5})
+
+    dd = d3
+    txt = "Petroleum %4d=%.f" % (mm.index[-1].year, mm[dd].values[-1])
+    ax.annotate(txt, (mdates.date2num(mm.index.values[-1]), mm[dd].values[-1]), xytext=(-10, -20), textcoords='offset points', ha='right', va='baseline', arrowprops={"arrowstyle" : '-|>', "mutation_scale":500**.5})
+
+    pylab.savefig('remaining_in_ground.png', bbox_inches='tight')
+    #import pylab; pylab.show()
+
+
+import ipdb; ipdb.set_trace()
+petroleum_production()
 
