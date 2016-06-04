@@ -12,9 +12,14 @@ def keep_fields(frm, to_keep):
     seen_fields = []
     for field in frm.columns:
         if field in to_keep:
+            seen_fields.append(field)
             continue
         else:
             frm = frm.drop(field, 1)
+    for field in to_keep:
+        if field not in seen_fields:
+            print "Missing field %s" % (field)
+            raise ValueError("Missing field %s" % (field))
     return frm
 
 def all_field_discovery():
@@ -82,9 +87,9 @@ def get_discovery_resource():
 
 field_reserve = get_field_reserve()
 field_reserve = field_reserve.rename(columns = { u'fldName_x': 'name',
-                                                 u'fldRecoverableOil' : 'recoverableOil',
-                                                 u'fldRecoverableGas' : 'recoverableGas',
-                                                 u'fldRecoverableOE' : 'recoverableOe'})
+                                                 u'fldRecoverableOil' : 'recoverableOilMillSm3',
+                                                 u'fldRecoverableGas' : 'recoverableGasBillSm3',
+                                                 u'fldRecoverableOE' : 'recoverableOeMillSm3'})
 fields = [#u'dscName',
     u'nmaName',
     u'name',
@@ -92,18 +97,18 @@ fields = [#u'dscName',
     #u'dscNpdidDiscovery',
     #u'fldNpdidField',
     #u'fldName_y',
-    u'recoverableOil',
-    u'recoverableGas',
-    u'recoverableOe',
+    u'recoverableOilMillSm3',
+    u'recoverableGasBillSm3',
+    u'recoverableOeMillSm3',
 ]
 
 field_reserve = keep_fields(field_reserve, fields)
 
 discovery_resource = get_discovery_resource()
 discovery_resource = discovery_resource.rename(columns = { u'dscName' : 'name',
-                                                           u'dscRecoverableOil' : 'recoverableOil',
-                                                           u'dscRecoverableGas' : 'recoverableGas',
-                                                           u'dscRecoverableOe' : 'recoverableOe'})
+                                                           u'dscRecoverableOil' : 'recoverableOilMillSm3',
+                                                           u'dscRecoverableGas' : 'recoverableGasBillSm3',
+                                                           u'dscRecoverableOe' : 'recoverableOeMillSm3'})
 discovery_resource = keep_fields(discovery_resource, fields)
 
 def change_column_order(df, col_name, index):
@@ -115,18 +120,20 @@ def change_column_order(df, col_name, index):
 m = pd.concat([field_reserve, discovery_resource])
 m = m.rename(columns = { u'dscDiscoveryYear' : 'discoveryYear',
                          u'nmaName' : 'mainArea'})
+print m.columns
+
 cols = [u'name',
         u'mainArea',
         u'discoveryYear',
-        u'recoverableOil',
-        u'recoverableGas',
-        u'recoverableOe',
+        u'recoverableOilMillSm3',
+        u'recoverableGasBillSm3',
+        u'recoverableOeMillSm3',
         ]
 
 for (idx, col) in enumerate(cols):
     m = change_column_order(m, col, idx)
 
-elephants =  m[m.recoverableOe >= 79.0]
+elephants =  m[m.recoverableOeMillSm3 >= 79.0]
 elephants = elephants.sort_values(by='discoveryYear', ascending=False)
 elephants.to_csv('elephants.tsv', sep='\t', index=False)
 
