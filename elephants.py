@@ -124,8 +124,13 @@ def change_column_order(df, col_name, index):
     cols.insert(index, col_name)
     return df[cols]
 
-m = pd.concat([field_reserve, discovery_resource])
-m = m.rename(columns = { u'dscDiscoveryYear' : 'discoveryYear',
+def change_order(df, cols):
+    for (idx, col) in enumerate(cols):
+        df = change_column_order(df, col, idx)
+    return df
+
+field_discovery = pd.concat([field_reserve, discovery_resource])
+field_discovery = field_discovery.rename(columns = { u'dscDiscoveryYear' : 'discoveryYear',
                          u'nmaName' : 'mainArea'})
 
 cols = [u'name',
@@ -135,16 +140,14 @@ cols = [u'name',
         u'recoverableGasBillSm3',
         u'recoverableOeMillSm3',
         ]
+field_discovery = change_order(field_discovery, cols)
 
-for (idx, col) in enumerate(cols):
-    m = change_column_order(m, col, idx)
-
-elephants =  m[m.recoverableOeMillSm3 >= 79.0]
+elephants =  field_discovery[field_discovery.recoverableOeMillSm3 >= 79.0]
 elephants = elephants.sort_values(by='discoveryYear', ascending=False)
 elephants.to_csv('elephants.tsv', sep='\t', index=False)
 
-m = m.sort_values(by='discoveryYear', ascending=False)
-m.to_csv('field_discovery.tsv', sep='\t', index=False)
+field_discovery = field_discovery.sort_values(by='discoveryYear', ascending=False)
+field_discovery.to_csv('field_discovery.tsv', sep='\t', index=False)
 
 def petroleum_production():
     url = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/field_production_totalt_NCS_year__DisplayAllRows&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=80.212.17.244&CultureCode=en'
@@ -160,23 +163,35 @@ def petroleum_production():
     production = production.sort_values(by='prfYear', ascending=True)
     production = production.groupby(by='prfYear').sum().cumsum()
     production['year'] = production.index
-    kk = m.groupby(by='discoveryYear').sum().cumsum()
-    kk['year'] = kk.index
-    missing_production_years = [year for year in kk.year.values if year not in production.index.values]
-    ff = pd.DataFrame(np.zeros((len(missing_production_years), len(production.columns))), columns=production.columns)
-    ff.index = missing_production_years
-    ff.year = ff.index
-    production = ff.append(production)
 
+    cumulative_discovery = field_discovery.groupby(by='discoveryYear').sum().cumsum()
+    cumulative_discovery['year'] = cumulative_discovery.index
 
-    missing_disc_years = [year for year in production.index.values if year not in kk.index.values]
+    missing_production_years = [year for year in cumulative_discovery.index.values if year not in production.index.values]
+    zero_pad = pd.DataFrame(np.zeros((len(missing_production_years), len(production.columns))), columns=production.columns)
+    zero_pad.index = missing_production_years
+    zero_pad.year = zero_pad.index
+    production = zero_pad.append(production)
+
+    missing_disc_years = [year for year in production.index.values if year not in cumulative_discovery.index.values]
     for year in missing_disc_years:
-        copy = kk[kk.year == year-1].copy()
+        copy = cumulative_discovery[cumulative_discovery.year == year-1].copy()
         copy.year = year
         copy.index = [year]
-        kk = kk.append(copy)
-    kk = kk.sort_values(by='year')
-    mm = pd.merge(kk, production, on='year')
+        cumulative_discovery = cumulative_discovery.append(copy)
+    cumulative_discovery = cumulative_discovery.sort_values(by='year')
+    mm = pd.merge(cumulative_discovery, production, on='year')
+    cols = [u'year',
+            u'prfPrdOilNetMillSm3',
+            u'prfPrdGasNetBillSm3',
+            u'prfPrdOeNetMillSm3',
+            u'recoverableOilMillSm3',
+            u'recoverableGasBillSm3',
+            u'recoverableOeMillSm3']
+    mm = change_order(mm, cols)
+    mm.to_csv('cumulative_discovery_produced.tsv', sep='\t')
+
+    #mm = mm[mm.year >= 1996]
 
     mm['tmp'] = mm.recoverableOilMillSm3 - mm.prfPrdOilNetMillSm3
     mm['tmp'] = (100.0 * mm.tmp) / mm.tmp.max()
