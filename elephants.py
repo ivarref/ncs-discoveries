@@ -198,58 +198,64 @@ def petroleum_production():
     remaining_in_ground = keep_fields(remaining_in_ground, ['year', 'remainingOilMillSm3', 'remainingGasBillSm3', 'remainingOeMillSm3'])
     remaining_in_ground.to_csv('remaining_in_ground.tsv', sep='\t', index=False)
 
-    #mm = mm[mm.year >= 1996]
 
-    mm['tmp'] = mm.recoverableOilMillSm3 - mm.prfPrdOilNetMillSm3
-    mm['tmp'] = (100.0 * mm.tmp) / mm.tmp.max()
-    maxyear = mm[mm.tmp == mm.tmp.max()].year.values[0]
-    d = 'Gjenverande Olje i bakken. %d=100' % (maxyear)
-    mm[d] = mm.tmp
+    def write_diagram(filename, mm, relativevalue):
+        mm['tmp'] = mm.recoverableOilMillSm3 - mm.prfPrdOilNetMillSm3
+        mm['tmp'] = (100.0 * mm.tmp) / relativevalue(mm)
+        maxyear = mm[mm.tmp == relativevalue(mm)].year.values[0]
+        d = 'Gjenverande Olje i bakken. %d=100' % (maxyear)
+        mm[d] = mm.tmp
 
-    mm['tmp'] = (mm.recoverableGasBillSm3 - mm.prfPrdGasNetBillSm3)
-    mm['tmp'] = (100.0 * mm.tmp) / mm.tmp.max()
-    maxyear = mm[mm.tmp == mm.tmp.max()].year.values[0]
-    d2 = 'Gjenverande Gass i bakken. %d=100' % (maxyear)
-    mm[d2] = mm.tmp
+        mm['tmp'] = (mm.recoverableGasBillSm3 - mm.prfPrdGasNetBillSm3)
+        mm['tmp'] = (100.0 * mm.tmp) / relativevalue(mm)
+        maxyear = mm[mm.tmp == relativevalue(mm)].year.values[0]
+        d2 = 'Gjenverande Gass i bakken. %d=100' % (maxyear)
+        mm[d2] = mm.tmp
 
-    mm['tmp'] = (mm.recoverableOeMillSm3 - mm.prfPrdOeNetMillSm3)
-    mm['tmp'] = (100.0 * mm.tmp) / mm.tmp.max()
-    maxyear = mm[mm.tmp == mm.tmp.max()].year.values[0]
-    d3 = 'Gjenverande Petroleum i bakken. %d=100' % (maxyear)
-    mm[d3] = mm.tmp
+        mm['tmp'] = (mm.recoverableOeMillSm3 - mm.prfPrdOeNetMillSm3)
+        mm['tmp'] = (100.0 * mm.tmp) / relativevalue(mm)
+        maxyear = mm[mm.tmp == relativevalue(mm)].year.values[0]
+        d3 = 'Gjenverande Petroleum i bakken. %d=100' % (maxyear)
+        mm[d3] = mm.tmp
 
-    columns = [u'year', d2, d, d3]
-    mm = keep_fields(mm, columns)
-    for (idx, col) in enumerate([d2, d3, d]):
-        mm = change_column_order(mm, col, idx)
+        columns = [u'year', d2, d, d3]
+        mm = keep_fields(mm, columns)
+        for (idx, col) in enumerate([d2, d3, d]):
+            mm = change_column_order(mm, col, idx)
 
-    mm.index = mm.year
-    mm[u'År'] = pd.to_datetime(mm[u'year'], format='%Y')
-    mm.index = mm[u'År']
-    mm.index = mm.index.astype(datetime.datetime)
-    mm = mm.drop(u'year', 1)
-    plot = mm.plot()
-    (xmin, xmax, ymin, ymax) = plot.axis()
-    ymax = 105
-    plot.axis((xmin, xmax, 0, ymax))
-    fig = matplotlib.pyplot.gcf()
-    ax = fig.axes[0]
+        mm.index = mm.year
+        mm[u'År'] = pd.to_datetime(mm[u'year'], format='%Y')
+        mm.index = mm[u'År']
+        mm.index = mm.index.astype(datetime.datetime)
+        mm = mm.drop(u'year', 1)
+        plot = mm.plot()
+        (xmin, xmax, ymin, ymax) = plot.axis()
+        ymax = ymax+5
+        plot.axis((xmin, xmax, 0, ymax))
+        fig = matplotlib.pyplot.gcf()
+        ax = fig.axes[0]
 
-    dd = d
-    txt = "Olje %4d=%.f" % (mm.index[-1].year, mm[dd].values[-1])
-    ax.annotate(txt, (mdates.date2num(mm.index.values[-1]), mm[dd].values[-1]), xytext=(-10, -20), textcoords='offset points', ha='right', va='baseline', arrowprops={"arrowstyle" : '-|>', "mutation_scale":500**.5})
+        dd = d
+        txt = "Olje %4d=%.f" % (mm.index[-1].year, mm[dd].values[-1])
+        ax.annotate(txt, (mdates.date2num(mm.index.values[-1]), mm[dd].values[-1]), xytext=(-10, -20), textcoords='offset points', ha='right', va='baseline', arrowprops={"arrowstyle" : '-|>', "mutation_scale":500**.5})
 
-    dd = d2
-    txt = "Gass %4d=%.f" % (mm.index[-1].year, mm[dd].values[-1])
-    ax.annotate(txt, (mdates.date2num(mm.index.values[-1]), mm[dd].values[-1]), xytext=(-10, 20), textcoords='offset points', ha='right', va='baseline', arrowprops={"arrowstyle" : '-|>', "mutation_scale":500**.5})
+        dd = d2
+        txt = "Gass %4d=%.f" % (mm.index[-1].year, mm[dd].values[-1])
+        ax.annotate(txt, (mdates.date2num(mm.index.values[-1]), mm[dd].values[-1]), xytext=(-10, -20), textcoords='offset points', ha='right', va='baseline', arrowprops={"arrowstyle" : '-|>', "mutation_scale":500**.5})
 
-    dd = d3
-    txt = "Petroleum %4d=%.f" % (mm.index[-1].year, mm[dd].values[-1])
-    ax.annotate(txt, (mdates.date2num(mm.index.values[-1]), mm[dd].values[-1]), xytext=(-10, -20), textcoords='offset points', ha='right', va='baseline', arrowprops={"arrowstyle" : '-|>', "mutation_scale":500**.5})
-
-    pylab.savefig('remaining_in_ground.png', bbox_inches='tight')
+        dd = d3
+        txt = "Petroleum %4d=%.f" % (mm.index[-1].year, mm[dd].values[-1])
+        ax.annotate(txt, (mdates.date2num(mm.index.values[-1]), mm[dd].values[-1]), xytext=(-10, -20), textcoords='offset points', ha='right', va='baseline', arrowprops={"arrowstyle" : '-|>', "mutation_scale":500**.5})
+        pylab.savefig(filename, bbox_inches='tight')
     #import pylab; pylab.show()
 
+    write_diagram('remaining_in_ground.png', mm.copy(), lambda x: x.tmp.max())
+    since = mm.copy(); since = since[since.year >= 1996]
+    write_diagram('remaining_in_ground_since_1996.png', since, lambda x: x.tmp.values[0])
+    since = mm.copy(); since = since[since.year >= 2006]
+    write_diagram('remaining_in_ground_since_2006.png', since, lambda x: x.tmp.values[0])
+    since = mm.copy(); since = since[since.year >= 1985]
+    write_diagram('remaining_in_ground_since_1985.png', since, lambda x: x.tmp.values[0])
 
 petroleum_production()
 
