@@ -189,7 +189,14 @@ def petroleum_production():
             u'recoverableGasBillSm3',
             u'recoverableOeMillSm3']
     mm = change_order(mm, cols)
-    mm.to_csv('cumulative_discovery_produced.tsv', sep='\t')
+    mm.to_csv('cumulative_discovery_produced.tsv', sep='\t', index=False)
+
+    remaining_in_ground = mm.copy()
+    remaining_in_ground['remainingOilMillSm3'] = remaining_in_ground.recoverableOilMillSm3 - remaining_in_ground.prfPrdOilNetMillSm3
+    remaining_in_ground['remainingGasBillSm3'] = remaining_in_ground.recoverableGasBillSm3 - remaining_in_ground.prfPrdGasNetBillSm3
+    remaining_in_ground['remainingOeMillSm3'] = remaining_in_ground.recoverableOeMillSm3 - remaining_in_ground.prfPrdOeNetMillSm3
+    remaining_in_ground = keep_fields(remaining_in_ground, ['year', 'remainingOilMillSm3', 'remainingGasBillSm3', 'remainingOeMillSm3'])
+    remaining_in_ground.to_csv('remaining_in_ground.tsv', sep='\t', index=False)
 
     #mm = mm[mm.year >= 1996]
 
