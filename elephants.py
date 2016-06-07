@@ -29,6 +29,17 @@ def keep_fields(frm, to_keep):
             raise ValueError("Missing field %s" % (field))
     return frm
 
+def change_column_order(df, col_name, index):
+    cols = df.columns.tolist()
+    cols.remove(col_name)
+    cols.insert(index, col_name)
+    return df[cols]
+
+def change_order(df, cols):
+    for (idx, col) in enumerate(cols):
+        df = change_column_order(df, col, idx)
+    return df
+
 def all_field_discovery():
     # factpages: Discovery -> Table View -> Overview
     url = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/discovery&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=80.212.17.244&CultureCode=en'
@@ -37,7 +48,7 @@ def all_field_discovery():
     frame = pd.read_csv(StringIO("\n".join(res)))
     frame = frame[pd.isnull(frame.dscResInclInDiscoveryName)] # Remove fields which is included in other field
     frame = keep_fields(frame, [u'dscName',
-                                #u'dscCurrentActivityStatus',
+                                u'dscCurrentActivityStatus',
                                 u'nmaName',
                                 u'fldName',
                                 u'dscDiscoveryYear',
@@ -47,7 +58,7 @@ def all_field_discovery():
     # As of 2016-05-04, this produces 337 rows
     # frame[pd.notnull(frame.fldNpdidField)] => 108 rows
     # frame[pd.isnull(frame.fldNpdidField)] # => 229 rows
-    #import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     return frame
 
 def get_field_reserve():
@@ -94,13 +105,15 @@ def get_discovery_resource():
 
 field_reserve = get_field_reserve()
 field_reserve = field_reserve.rename(columns = { u'fldName_x': 'name',
+                                                 u'dscCurrentActivityStatus' : u'status',
                                                  u'fldRecoverableOil' : 'recoverableOilMillSm3',
                                                  u'fldRecoverableGas' : 'recoverableGasBillSm3',
                                                  u'fldRecoverableOE' : 'recoverableOeMillSm3'})
 fields = [#u'dscName',
-    u'nmaName',
     u'name',
     u'dscDiscoveryYear',
+    u'status',
+    u'nmaName',
     #u'dscNpdidDiscovery',
     #u'fldNpdidField',
     #u'fldName_y',
@@ -109,7 +122,9 @@ fields = [#u'dscName',
     u'recoverableOeMillSm3',
 ]
 
-field_reserve = keep_fields(field_reserve, fields)
+field_reserve = change_order(keep_fields(field_reserve, fields), fields)
+field_reserve = field_reserve.sort_values(by='dscDiscoveryYear', ascending=True)
+field_reserve.to_csv('field_reserve.tsv', sep='\t', index=False)
 
 discovery_resource = get_discovery_resource()
 discovery_resource = discovery_resource.rename(columns = { u'dscName' : 'name',
@@ -118,16 +133,6 @@ discovery_resource = discovery_resource.rename(columns = { u'dscName' : 'name',
                                                            u'dscRecoverableOe' : 'recoverableOeMillSm3'})
 discovery_resource = keep_fields(discovery_resource, fields)
 
-def change_column_order(df, col_name, index):
-    cols = df.columns.tolist()
-    cols.remove(col_name)
-    cols.insert(index, col_name)
-    return df[cols]
-
-def change_order(df, cols):
-    for (idx, col) in enumerate(cols):
-        df = change_column_order(df, col, idx)
-    return df
 
 field_discovery = pd.concat([field_reserve, discovery_resource])
 field_discovery = field_discovery.rename(columns = { u'dscDiscoveryYear' : 'discoveryYear',
