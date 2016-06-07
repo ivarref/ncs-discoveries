@@ -119,7 +119,7 @@ def petroleum_production():
     production = production.groupby(by='prfYear').sum().cumsum()
     production['year'] = production.index
 
-    cumulative_discovery = field_discovery.groupby(by='discoveryYear').sum().cumsum()
+    cumulative_discovery = field_reserve.groupby(by='discoveryYear').sum().cumsum()
     cumulative_discovery['year'] = cumulative_discovery.index
 
     missing_production_years = [year for year in cumulative_discovery.index.values if year not in production.index.values]
@@ -212,5 +212,5 @@ def petroleum_production():
     since = mm.copy(); since = since[since.year >= 1985]
     write_diagram('remaining_in_ground_since_1985.png', since, lambda x: x.tmp.values[0])
 
-#petroleum_production()
+petroleum_production()
 
