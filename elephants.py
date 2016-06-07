@@ -102,8 +102,7 @@ field_reserve = field_reserve.sort_values(by='discoveryYear', ascending=True)
 field_reserve.to_csv('field_reserve.tsv', sep='\t', index=False)
 
 field_reserve[field_reserve.status == u'PDO APPROVED'].to_csv('pdo_approved.tsv', sep='\t', index=False)
-#elephants =  field_reserve[field_reserve.recoverableOeMillSm3 >= 79.0]
-#elephants.to_csv('elephants.tsv', sep='\t', index=False)
+field_reserve[field_reserve.recoverableOeMillSm3 >= 79.0].to_csv('elephants.tsv', sep='\t', index=False)
 
 def petroleum_production():
     url = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/field_production_totalt_NCS_year__DisplayAllRows&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=80.212.17.244&CultureCode=en'
