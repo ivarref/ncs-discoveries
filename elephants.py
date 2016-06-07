@@ -89,12 +89,14 @@ def get_discovery_resource():
     resources = pd.read_csv(StringIO("\n".join(res)))
     # [u'dscName', u'dscReservesRC', u'dscRecoverableOil', u'dscRecoverableGas', u'dscRecoverableNGL', u'dscRecoverableCondensate', u'dscRecoverableOe', u'dscDateOffResEstDisplay', u'dscNpdidDiscovery', u'dscReservesDateUpdated', u'DatesyncNPD']
     resources = keep_fields(resources, [u'dscName',
+                                        u'dscReservesRC',
                                         u'dscRecoverableOil',
                                         u'dscRecoverableGas',
                                         u'dscRecoverableOe',
                                         u'dscNpdidDiscovery'])
     grouped = resources.groupby(by='dscNpdidDiscovery', as_index=False).sum()
-    return pd.merge(all_field_discovery(), grouped, on='dscNpdidDiscovery') # => 90 discoveries with resource estimates
+    m = pd.merge(all_field_discovery(), grouped, on='dscNpdidDiscovery') # => 90 discoveries with resource estimates
+    return m
     # 139 non-fields without resource estimates
     # I've manually verified that this is correct for Pingvin, Desmond, Atlantis, Zulu Øst, etc.
     # nonfields = frame[pd.isnull(frame.fldNpdidField)]
@@ -125,13 +127,16 @@ fields = [#u'dscName',
 field_reserve = change_order(keep_fields(field_reserve, fields), fields)
 field_reserve = field_reserve.sort_values(by='dscDiscoveryYear', ascending=True)
 field_reserve.to_csv('field_reserve.tsv', sep='\t', index=False)
+field_reserve[field_reserve.status == u'PDO APPROVED'].to_csv('pdo_approved.tsv', sep='\t', index=False)
 
 discovery_resource = get_discovery_resource()
 discovery_resource = discovery_resource.rename(columns = { u'dscName' : 'name',
+                                                           u'dscReservesRC' : 'status',
                                                            u'dscRecoverableOil' : 'recoverableOilMillSm3',
                                                            u'dscRecoverableGas' : 'recoverableGasBillSm3',
                                                            u'dscRecoverableOe' : 'recoverableOeMillSm3'})
-discovery_resource = keep_fields(discovery_resource, fields)
+discovery_resource = change_order(keep_fields(discovery_resource, fields), fields)
+discovery_resource.to_csv('discovery_resource.tsv', sep='\t', index=False)
 
 
 field_discovery = pd.concat([field_reserve, discovery_resource])
