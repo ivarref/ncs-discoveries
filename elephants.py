@@ -101,7 +101,7 @@ field_reserve = field_reserve.sort_values(by='discoveryYear', ascending=True)
 
 field_reserve.to_csv('field_reserve.tsv', sep='\t', index=False)
 
-#field_reserve[field_reserve.status == u'PDO APPROVED'].to_csv('pdo_approved.tsv', sep='\t', index=False)
+field_reserve[field_reserve.status == u'PDO APPROVED'].to_csv('pdo_approved.tsv', sep='\t', index=False)
 #elephants =  field_reserve[field_reserve.recoverableOeMillSm3 >= 79.0]
 #elephants.to_csv('elephants.tsv', sep='\t', index=False)
 
