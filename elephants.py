@@ -13,7 +13,6 @@ import matplotlib.dates as mdates
 import matplotlib
 import pylab
 import datetime
-#matplotlib.style.use('ggplot')
 
 def keep_fields(frm, to_keep):
     seen_fields = []
@@ -58,7 +57,6 @@ def all_field_discovery():
     # As of 2016-05-04, this produces 337 rows
     # frame[pd.notnull(frame.fldNpdidField)] => 108 rows
     # frame[pd.isnull(frame.fldNpdidField)] # => 229 rows
-    # import ipdb; ipdb.set_trace()
     return frame
 
 def get_field_reserve():
@@ -78,86 +76,34 @@ def get_field_reserve():
                                       u'fldRecoverableGas',
                                       u'fldRecoverableOE',
                                       u'fldNpdidField'])
-    field_reserve = pd.merge(fields, reserves, on='fldNpdidField')
-    return field_reserve
-
-def get_discovery_resource():
-    # Discovery -> Table view -> Resources
-    resources_url = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/discovery_reserves&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=80.212.17.244&CultureCode=en'
-    res = requests.get(resources_url).text[1:].split('\n')
-    #res = [res[0], res[-3], res[-4]]
-    resources = pd.read_csv(StringIO("\n".join(res)))
-    # [u'dscName', u'dscReservesRC', u'dscRecoverableOil', u'dscRecoverableGas', u'dscRecoverableNGL', u'dscRecoverableCondensate', u'dscRecoverableOe', u'dscDateOffResEstDisplay', u'dscNpdidDiscovery', u'dscReservesDateUpdated', u'DatesyncNPD']
-    resources = keep_fields(resources, [u'dscName',
-                                        u'dscReservesRC',
-                                        u'dscRecoverableOil',
-                                        u'dscRecoverableGas',
-                                        u'dscRecoverableOe',
-                                        u'dscNpdidDiscovery'])
-    grouped = resources.groupby(by='dscNpdidDiscovery', as_index=False).sum()
-    m = pd.merge(all_field_discovery(), grouped, on='dscNpdidDiscovery') # => 90 discoveries with resource estimates
-    return m
-    # 139 non-fields without resource estimates
-    # I've manually verified that this is correct for Pingvin, Desmond, Atlantis, Zulu Øst, etc.
-    # nonfields = frame[pd.isnull(frame.fldNpdidField)]
-    # no_resource_estimates = [npdid for npdid in nonfields.dscNpdidDiscovery.values if npdid not in m.dscNpdidDiscovery.values]
-    # print "Number of discoveries with no resources estimates: %d" % (len(no_resource_estimates))
-    # for npdid in no_resource_estimates:
-        #print "Missing resource estimate for discovery: %s" % (nonfields[nonfields.dscNpdidDiscovery == npdid].dscName.values[0])
+    return pd.merge(fields, reserves, on='fldNpdidField')
 
 field_reserve = get_field_reserve()
-field_reserve = field_reserve.rename(columns = { u'fldName_x': 'name',
-                                                 u'dscCurrentActivityStatus' : u'status',
-                                                 u'fldRecoverableOil' : 'recoverableOilMillSm3',
-                                                 u'fldRecoverableGas' : 'recoverableGasBillSm3',
-                                                 u'fldRecoverableOE' : 'recoverableOeMillSm3'})
-fields = [#u'dscName',
-    u'name',
-    u'dscDiscoveryYear',
-    u'status',
-    u'nmaName',
-    #u'dscNpdidDiscovery',
-    #u'fldNpdidField',
-    #u'fldName_y',
-    u'recoverableOilMillSm3',
-    u'recoverableGasBillSm3',
-    u'recoverableOeMillSm3',
-]
-
-field_reserve = change_order(keep_fields(field_reserve, fields), fields)
-field_reserve = field_reserve.sort_values(by='dscDiscoveryYear', ascending=True)
-field_reserve.to_csv('field_reserve.tsv', sep='\t', index=False)
-field_reserve[field_reserve.status == u'PDO APPROVED'].to_csv('pdo_approved.tsv', sep='\t', index=False)
-
-discovery_resource = get_discovery_resource()
-discovery_resource = discovery_resource.rename(columns = { u'dscName' : 'name',
-                                                           u'dscReservesRC' : 'status',
-                                                           u'dscRecoverableOil' : 'recoverableOilMillSm3',
-                                                           u'dscRecoverableGas' : 'recoverableGasBillSm3',
-                                                           u'dscRecoverableOe' : 'recoverableOeMillSm3'})
-discovery_resource = change_order(keep_fields(discovery_resource, fields), fields)
-discovery_resource.to_csv('discovery_resource.tsv', sep='\t', index=False)
-
-
-field_discovery = pd.concat([field_reserve, discovery_resource])
-field_discovery = field_discovery.rename(columns = { u'dscDiscoveryYear' : 'discoveryYear',
-                         u'nmaName' : 'mainArea'})
+field_reserve = field_reserve.rename(columns = {
+    u'fldName_x': 'name',
+    u'dscCurrentActivityStatus' : u'status',
+    u'dscDiscoveryYear' : u'discoveryYear',
+    u'nmaName' : u'mainArea',
+    u'fldRecoverableOil' : 'recoverableOilMillSm3',
+    u'fldRecoverableGas' : 'recoverableGasBillSm3',
+    u'fldRecoverableOE' : 'recoverableOeMillSm3'})
 
 cols = [u'name',
-        u'mainArea',
         u'discoveryYear',
+        u'mainArea',
+        u'status',
         u'recoverableOilMillSm3',
         u'recoverableGasBillSm3',
-        u'recoverableOeMillSm3',
-        ]
-field_discovery = change_order(field_discovery, cols)
+        u'recoverableOeMillSm3']
 
-elephants =  field_discovery[field_discovery.recoverableOeMillSm3 >= 79.0]
-elephants = elephants.sort_values(by='discoveryYear', ascending=False)
-elephants.to_csv('elephants.tsv', sep='\t', index=False)
+field_reserve = change_order(keep_fields(field_reserve, cols), cols)
+field_reserve = field_reserve.sort_values(by='discoveryYear', ascending=True)
 
-field_discovery = field_discovery.sort_values(by='discoveryYear', ascending=False)
-field_discovery.to_csv('field_discovery.tsv', sep='\t', index=False)
+field_reserve.to_csv('field_reserve.tsv', sep='\t', index=False)
+
+#field_reserve[field_reserve.status == u'PDO APPROVED'].to_csv('pdo_approved.tsv', sep='\t', index=False)
+#elephants =  field_reserve[field_reserve.recoverableOeMillSm3 >= 79.0]
+#elephants.to_csv('elephants.tsv', sep='\t', index=False)
 
 def petroleum_production():
     url = 'http://factpages.npd.no/ReportServer?/FactPages/TableView/field_production_totalt_NCS_year__DisplayAllRows&rs:Command=Render&rc:Toolbar=false&rc:Parameters=f&rs:Format=CSV&Top100=false&IpAddress=80.212.17.244&CultureCode=en'
@@ -267,5 +213,5 @@ def petroleum_production():
     since = mm.copy(); since = since[since.year >= 1985]
     write_diagram('remaining_in_ground_since_1985.png', since, lambda x: x.tmp.values[0])
 
-petroleum_production()
+#petroleum_production()
 
