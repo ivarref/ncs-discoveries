@@ -1,0 +1,33 @@
+{"query": [
+        {
+            "code": "InvestOljeGass",
+            "selection": {
+                "filter": "item",
+                "values": [
+                    "0-L"
+                ]
+            }
+        },
+        {
+            "code": "ContentsCode",
+            "selection": {
+                "filter": "item",
+                "values": [
+                    "Kostnadsart"
+                ]
+            }
+        },
+        {
+            "code": "Tid",
+            "selection": {
+                "filter": "all",
+                "values": [
+                    "*"
+                ]
+            }
+        }
+    ],
+    "response": {
+        "format": "json-stat"
+    }
+}
